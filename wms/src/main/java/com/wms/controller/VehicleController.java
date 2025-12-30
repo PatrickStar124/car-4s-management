@@ -3,64 +3,95 @@ package com.wms.controller;
 import com.wms.common.Result;
 import com.wms.entity.Vehicle;
 import com.wms.service.VehicleService;
-// 删除下面两行
-// import io.swagger.annotations.Api;
-// import io.swagger.annotations.ApiOperation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 车辆管理控制器
+ * 处理车辆相关的接口请求，包括添加、更新、查询、删除及维修历史查询等操作
+ */
 @RestController
 @RequestMapping("/api/vehicle")
-// 删除这一行：@Api(tags = "车辆管理")
 public class VehicleController {
 
     @Autowired
     private VehicleService vehicleService;
 
+    /**
+     * 添加车辆信息
+     * @param vehicle 车辆信息实体（包含车牌号、车主ID、车型等核心信息）
+     * @return 操作结果
+     */
     @PostMapping("/add")
-    // 删除这一行：@ApiOperation("添加车辆")
     public Result addVehicle(@RequestBody Vehicle vehicle) {
         return vehicleService.addVehicle(vehicle);
     }
 
+    /**
+     * 更新车辆信息
+     * @param vehicle 待更新的车辆信息实体（需包含车辆ID）
+     * @return 操作结果
+     */
     @PutMapping("/update")
-    // 删除这一行：@ApiOperation("更新车辆信息")
     public Result updateVehicle(@RequestBody Vehicle vehicle) {
         return vehicleService.updateVehicle(vehicle);
     }
 
+    /**
+     * 根据车主ID查询其名下所有车辆
+     * @param ownerId 车主ID
+     * @return 该车主的车辆列表
+     */
     @GetMapping("/owner/{ownerId}")
-    // 删除这一行：@ApiOperation("根据车主查询车辆")
     public Result getVehiclesByOwner(@PathVariable Integer ownerId) {
         return vehicleService.getVehiclesByOwnerId(ownerId);
     }
 
+    /**
+     * 根据车牌号查询车辆信息
+     * @param plateNumber 车牌号（精确匹配）
+     * @return 对应的车辆详情
+     */
     @GetMapping("/plate/{plateNumber}")
-    // 删除这一行：@ApiOperation("根据车牌号查询车辆")
     public Result getVehicleByPlate(@PathVariable String plateNumber) {
         return vehicleService.getVehicleByPlate(plateNumber);
     }
 
+    /**
+     * 根据车辆ID获取车辆详情
+     * @param id 车辆ID
+     * @return 车辆的完整信息
+     */
     @GetMapping("/detail/{id}")
-    // 删除这一行：@ApiOperation("获取车辆详情")
     public Result getVehicleDetail(@PathVariable Integer id) {
         return vehicleService.getVehicleDetail(id);
     }
 
+    /**
+     * 查询车辆的维修历史记录
+     * @param vehicleId 车辆ID
+     * @return 该车辆的所有维修工单记录
+     */
     @GetMapping("/history/{vehicleId}")
-    // 删除这一行：@ApiOperation("获取车辆维修历史")
     public Result getVehicleRepairHistory(@PathVariable Integer vehicleId) {
         return vehicleService.getVehicleRepairHistory(vehicleId);
     }
 
+    /**
+     * 获取所有车辆列表
+     * @return 全量车辆信息列表
+     */
     @GetMapping("/list")
-    // 删除这一行：@ApiOperation("获取车辆列表")
     public Result getVehicleList() {
         return Result.suc(vehicleService.list());
     }
 
+    /**
+     * 根据车辆ID删除车辆信息
+     * @param id 车辆ID
+     * @return 操作结果（成功/失败提示）
+     */
     @DeleteMapping("/{id}")
-    // 删除这一行：@ApiOperation("删除车辆")
     public Result deleteVehicle(@PathVariable Integer id) {
         boolean removed = vehicleService.removeById(id);
         return removed ? Result.suc("删除成功") : Result.fail("删除失败");
