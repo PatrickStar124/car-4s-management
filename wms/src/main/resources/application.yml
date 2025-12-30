@@ -1,0 +1,34 @@
+server:
+  port: 8999
+
+spring:
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher  # 解决Swagger问题
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/car_service?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: 123456
+
+# 暂时禁用Swagger
+springfox:
+  documentation:
+    enabled: false
+
+mybatis-plus:
+  # 配置Mapper XML文件位置（如果没有XML文件可以不加）
+  # mapper-locations: classpath*:mapper/**/*.xml
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: AUTO
+
+# 启用详细日志
+logging:
+  level:
+    com.wms: DEBUG
+    org.springframework.web: DEBUG
