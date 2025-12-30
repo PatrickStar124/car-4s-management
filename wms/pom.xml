@@ -12,7 +12,7 @@
 	<artifactId>wms</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>wms</name>
-	<description>4S店客户服务与运营管理系统</description>  <!-- 修改描述 -->
+	<description>4S店客户服务与运营管理系统</description>  <!-- 修改描述1 -->
 
 	<properties>
 		<java.version>17</java.version>
