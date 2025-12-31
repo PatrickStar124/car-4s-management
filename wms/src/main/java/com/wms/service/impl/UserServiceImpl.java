@@ -21,6 +21,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private static final String ROLE_WAREHOUSE = "warehouse";// 仓库管理员
     private static final String ROLE_ADMIN = "admin";        // 管理员
 
+    // 用户登录
     @Override
     public Result login(String no, String password) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
@@ -39,6 +40,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return Result.fail("用户名或密码错误");
     }
 
+    // 用户注册
     @Override
     public Result register(User user) {
         // 1. 校验必填字段
@@ -73,11 +75,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return saved ? Result.suc("注册成功", user) : Result.fail("注册失败");
     }
 
+    // 获取用户信息
     @Override
     public User getUserInfo(Integer id) {
         return this.getById(id);
     }
 
+    // 根据角色获取用户列表
     @Override
     public Result getUsersByRole(String role) {
         if (role == null || role.trim().isEmpty()) {
@@ -92,6 +96,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return Result.suc(users);
     }
 
+    // 创建员工账号
     @Override
     public Result createStaff(User user) {
         // 创建员工账号（需要管理员权限，这里先做基础校验）
@@ -115,6 +120,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return saved ? Result.suc("员工账号创建成功", user) : Result.fail("创建失败");
     }
 
+    // 更新用户角色
     @Override
     public Result updateUserRole(Integer userId, String role) {
         if (!isValidRole(role)) {
@@ -131,6 +137,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return updated ? Result.suc("角色更新成功") : Result.fail("更新失败");
     }
 
+    // 获取所有服务顾问
     @Override
     public List<User> getServiceAdvisors() {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
@@ -139,6 +146,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return this.list(wrapper);
     }
 
+    // 获取所有维修技师
     @Override
     public List<User> getMechanics() {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
@@ -147,12 +155,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return this.list(wrapper);
     }
 
+    // 检查用户是否存在
     private boolean checkUserExists(String no) {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getNo, no);
         return this.count(wrapper) > 0;
     }
 
+    // 验证角色是否合法
     private boolean isValidRole(String role) {
         return ROLE_OWNER.equals(role) ||
                 ROLE_SERVICE.equals(role) ||
@@ -161,6 +171,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 ROLE_ADMIN.equals(role);
     }
 
+    // 验证员工角色是否合法
     private boolean isValidStaffRole(String role) {
         return ROLE_SERVICE.equals(role) ||
                 ROLE_MECHANIC.equals(role) ||

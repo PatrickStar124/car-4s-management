@@ -24,6 +24,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
     @Autowired
     private PartMapper partMapper;
 
+    // 配件入库
     @Override
     @Transactional
     public Result stockIn(Integer partId, Integer quantity, String operator) {
@@ -69,6 +70,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         }
     }
 
+    // 配件出库
     @Override
     @Transactional
     public Result stockOut(Integer partId, Integer quantity, String operator, String purpose) {
@@ -113,6 +115,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         }
     }
 
+    // 调整库存（手动修改库存数量）
     @Override
     @Transactional
     public Result adjustStock(Integer partId, Integer newQuantity, String reason, String operator) {
@@ -156,6 +159,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         }
     }
 
+    // 获取库存详情（包含配件信息和库存价值）
     @Override
     public Result getInventoryDetail(Integer partId) {
         try {
@@ -197,6 +201,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         }
     }
 
+    // 获取低库存预警列表
     @Override
     public Result getLowStockWarning() {
         try {
@@ -224,6 +229,7 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
         }
     }
 
+    // 获取库存统计信息
     @Override
     public Result getInventoryStats() {
         try {

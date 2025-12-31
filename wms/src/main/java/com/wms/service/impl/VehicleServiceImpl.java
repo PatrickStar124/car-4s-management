@@ -20,6 +20,7 @@ public class VehicleServiceImpl extends ServiceImpl<VehicleMapper, Vehicle> impl
     @Autowired
     private UserMapper userMapper;
 
+    // 根据车主ID获取其名下所有车辆
     @Override
     public Result getVehiclesByOwnerId(Integer ownerId) {
         try {
@@ -41,6 +42,7 @@ public class VehicleServiceImpl extends ServiceImpl<VehicleMapper, Vehicle> impl
         }
     }
 
+    // 根据车牌号查询车辆
     @Override
     public Result getVehicleByPlate(String plateNumber) {
         try {
@@ -64,6 +66,7 @@ public class VehicleServiceImpl extends ServiceImpl<VehicleMapper, Vehicle> impl
         }
     }
 
+    // 添加新车辆
     @Override
     @Transactional
     public Result addVehicle(Vehicle vehicle) {
@@ -97,6 +100,7 @@ public class VehicleServiceImpl extends ServiceImpl<VehicleMapper, Vehicle> impl
         }
     }
 
+    // 更新车辆信息
     @Override
     @Transactional
     public Result updateVehicle(Vehicle vehicle) {
@@ -128,6 +132,7 @@ public class VehicleServiceImpl extends ServiceImpl<VehicleMapper, Vehicle> impl
         }
     }
 
+    // 获取车辆详细信息（包含车主信息）
     @Override
     public Result getVehicleDetail(Integer vehicleId) {
         try {
@@ -148,7 +153,8 @@ public class VehicleServiceImpl extends ServiceImpl<VehicleMapper, Vehicle> impl
         }
     }
 
-    @Override  // ← 确保这里有 @Override 注解
+    // 获取车辆维修历史（TODO：待关联维修工单模块）
+    @Override
     public Result getVehicleRepairHistory(Integer vehicleId) {
         try {
             // TODO: 这里需要关联RepairOrder表查询维修历史

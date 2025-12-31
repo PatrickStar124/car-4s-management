@@ -21,6 +21,7 @@ public class PartServiceImpl extends ServiceImpl<PartMapper, Part> implements Pa
     @Autowired
     private InventoryMapper inventoryMapper;
 
+    // 添加配件
     @Override
     @Transactional
     public Result addPart(Part part) {
@@ -59,6 +60,7 @@ public class PartServiceImpl extends ServiceImpl<PartMapper, Part> implements Pa
         }
     }
 
+    // 更新配件信息
     @Override
     @Transactional
     public Result updatePart(Part part) {
@@ -89,6 +91,7 @@ public class PartServiceImpl extends ServiceImpl<PartMapper, Part> implements Pa
         }
     }
 
+    // 根据分类查询配件
     @Override
     public Result getPartsByCategory(String category) {
         try {
@@ -103,6 +106,7 @@ public class PartServiceImpl extends ServiceImpl<PartMapper, Part> implements Pa
         }
     }
 
+    // 根据品牌查询配件
     @Override
     public Result getPartsByBrand(String brand) {
         try {
@@ -117,6 +121,7 @@ public class PartServiceImpl extends ServiceImpl<PartMapper, Part> implements Pa
         }
     }
 
+    // 搜索配件（支持编号、名称、品牌、型号搜索）
     @Override
     public Result searchParts(String keyword) {
         try {
@@ -148,6 +153,7 @@ public class PartServiceImpl extends ServiceImpl<PartMapper, Part> implements Pa
         }
     }
 
+    // 获取配件详情（包含库存信息）
     @Override
     public Result getPartDetail(Integer partId) {
         try {

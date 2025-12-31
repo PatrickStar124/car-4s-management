@@ -41,6 +41,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
     private static final String STATUS_COMPLETED = "completed";    // 已完成
     private static final String STATUS_DELIVERED = "delivered";    // 已交车
 
+    // 创建维修工单
     @Override
     @Transactional
     public Result createOrder(RepairOrder order) {
@@ -87,6 +88,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 更新工单状态
     @Override
     @Transactional
     public Result updateOrderStatus(Integer orderId, String status, Integer operatorId) {
@@ -181,6 +183,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 分配维修技师
     @Override
     @Transactional
     public Result assignMechanic(Integer orderId, Integer mechanicId) {
@@ -212,6 +215,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 添加工单项（维修项目或配件）
     @Override
     @Transactional
     public Result addOrderItem(Integer orderId, Integer partId, String itemType,
@@ -266,6 +270,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 计算工单总金额
     @Override
     public Result calculateOrderAmount(Integer orderId) {
         try {
@@ -295,6 +300,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 根据车主ID查询工单列表
     @Override
     public Result getOrdersByOwnerId(Integer ownerId) {
         try {
@@ -320,6 +326,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 根据车辆ID查询工单列表
     @Override
     public Result getOrdersByVehicleId(Integer vehicleId) {
         try {
@@ -334,6 +341,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 根据状态查询工单列表
     @Override
     public Result getOrdersByStatus(String status) {
         try {
@@ -348,6 +356,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 获取工单详情（包含所有关联信息）
     @Override
     public Result getOrderDetail(Integer orderId) {
         try {
@@ -381,10 +390,9 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
             itemWrapper.eq(OrderItem::getOrderId, orderId);
             List<OrderItem> items = orderItemMapper.selectList(itemWrapper);
 
-            // 关联配件信息（已修正！）
+            // 关联配件信息
             items.forEach(item -> {
                 if (item.getPartId() != null) {
-                    // 直接设置，不需要强制类型转换
                     item.setPart(partMapper.selectById(item.getPartId()));
                 }
             });
@@ -400,6 +408,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 提交报价（服务顾问）
     @Override
     @Transactional
     public Result submitQuote(Integer orderId, BigDecimal estimatedAmount, String remark) {
@@ -428,6 +437,7 @@ public class RepairOrderServiceImpl extends ServiceImpl<RepairOrderMapper, Repai
         }
     }
 
+    // 完成工单（维修技师）
     @Override
     @Transactional
     public Result completeOrder(Integer orderId, BigDecimal actualAmount) {

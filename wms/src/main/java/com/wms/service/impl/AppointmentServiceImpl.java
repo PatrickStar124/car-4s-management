@@ -35,6 +35,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
     private static final String STATUS_CANCELED = "canceled";  // 已取消
     private static final String STATUS_COMPLETED = "completed"; // 已完成
 
+    // 创建预约
     @Override
     @Transactional
     public Result createAppointment(Appointment appointment) {
@@ -103,6 +104,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 检查时间冲突（任务书要求的冲突检测功能）
     @Override
     public Result checkTimeConflict(Integer vehicleId, LocalDateTime startTime, LocalDateTime endTime) {
         try {
@@ -135,6 +137,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 取消预约
     @Override
     @Transactional
     public Result cancelAppointment(Integer appointmentId, Integer userId) {
@@ -173,6 +176,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 确认预约（服务顾问操作）
     @Override
     @Transactional
     public Result confirmAppointment(Integer appointmentId, Integer serviceAdvisorId) {
@@ -204,6 +208,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 根据车主ID查询预约列表
     @Override
     public Result getAppointmentsByOwnerId(Integer ownerId) {
         try {
@@ -229,6 +234,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 根据服务顾问ID查询预约列表
     @Override
     public Result getAppointmentsByAdvisorId(Integer advisorId) {
         try {
@@ -254,6 +260,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 根据状态查询预约列表
     @Override
     public Result getAppointmentsByStatus(String status) {
         try {
@@ -268,6 +275,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 获取今日预约（用于数据看板）
     @Override
     public Result getTodayAppointments() {
         try {
@@ -300,6 +308,7 @@ public class AppointmentServiceImpl extends ServiceImpl<AppointmentMapper, Appoi
         }
     }
 
+    // 获取时间段内的预约（用于冲突检测）
     @Override
     public List<Appointment> getAppointmentsInTimeRange(LocalDateTime startTime, LocalDateTime endTime) {
         LambdaQueryWrapper<Appointment> wrapper = new LambdaQueryWrapper<>();
