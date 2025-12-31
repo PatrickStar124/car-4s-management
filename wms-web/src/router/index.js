@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// 定义路由表，所有组件从 views/ 目录懒加载
+// 路由定义
 const routes = [
     // 默认根路径重定向到首页
     {
@@ -12,54 +12,53 @@ const routes = [
         path: '/home',
         name: 'Home',
         component: () => import('@/views/HomePage.vue'),
-        meta: { title: '首页' }
-    },
-    // 图书列表页
-    {
-        path: '/booklist',
-        name: 'BookList',
-        component: () => import('@/views/BookList.vue'),
-        meta: { title: '全部图书' }
-    },
-    // 新增书籍页面（仅登录可访问，删除管理员限制）
-    {
-        path: '/bookadd',
-        name: 'BookAdd',
-        component: () => import('@/views/BookAdd.vue'),
         meta: {
-            title: '新增书籍',
-            requiresAuth: true
+            title: '首页'
         }
     },
-    // 购物车页面
-    {
-        path: '/cart',
-        name: 'Cart',
-        component: () => import('@/views/CartPage.vue'),
-        meta: { title: '购物车', requiresAuth: true }
-    },
-    // 用户中心页面
-    {
-        path: '/usercenter',
-        name: 'UserCenter',
-        component: () => import('@/views/UserCenter.vue'),
-        meta: { title: '个人中心', requiresAuth: true }
-    },
-    // 登录页面
+    // 统一登录页面
     {
         path: '/login',
         name: 'Login',
         component: () => import('@/views/LoginPage.vue'),
-        meta: { title: '登录' }
+        meta: {
+            title: '登录',
+            guest: true // 游客可访问
+        }
     },
-    // 注册页面
+    // 车主注册页面
     {
         path: '/register',
         name: 'Register',
         component: () => import('@/views/RegisterPage.vue'),
-        meta: { title: '注册' }
+        meta: {
+            title: '车主注册',
+            guest: true // 游客可访问
+        }
     },
-    // 404 页面处理：重定向到首页
+    // 车主中心页面
+    {
+        path: '/user-center',
+        name: 'UserCenter',
+        component: () => import('@/views/UserCenter.vue'),
+        meta: {
+            title: '车主中心',
+            requiresAuth: true, // 需要登录
+            requiredRole: 'owner' // 需要 'owner' 角色
+        }
+    },
+    // 员工中心页面
+    {
+        path: '/staff-center',
+        name: 'StaffCenter',
+        component: () => import('@/views/StaffCenter.vue'),
+        meta: {
+            title: '员工中心',
+            requiresAuth: true, // 需要登录
+            requiredRole: 'staff' // 需要 'staff' 角色
+        }
+    },
+    // 404 页面：修正为重定向到首页，因为你没有 NotFound.vue 文件
     {
         path: '/:pathMatch(.*)*',
         redirect: '/home'
@@ -69,59 +68,102 @@ const routes = [
 // 创建路由实例
 const router = createRouter({
     history: createWebHistory(process.env.BASE_URL),
-    routes
+    routes,
+    // eslint-disable-next-line no-unused-vars
+    scrollBehavior(to, from, savedPosition) {
+        // 始终滚动到顶部
+        return { top: 0 }
+    }
 })
 
-// 用户状态管理函数
-function getUserFromLocalStorage() {
-    const userStr = localStorage.getItem('user')
-    if (userStr) {
+/**
+ * 从 localStorage 获取用户状态
+ * @returns {Object} 用户状态对象
+ */
+function getUserState() {
+    const userInfoStr = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
+
+    if (userInfoStr && token) {
         try {
-            return JSON.parse(userStr)
+            const userInfo = JSON.parse(userInfoStr)
+            return {
+                isAuthenticated: true,
+                userData: userInfo
+            }
         } catch (e) {
             console.error('解析用户信息失败:', e)
             localStorage.removeItem('user')
-            return null
+            localStorage.removeItem('token')
         }
     }
-    return null
+
+    return {
+        isAuthenticated: false,
+        userData: null
+    }
+}
+
+/**
+ * 设置页面标题
+ */
+function setPageTitle(to) {
+    const defaultTitle = '汽车4S店服务平台'
+    if (to.meta.title) {
+        document.title = `${to.meta.title} | ${defaultTitle}`
+    } else {
+        document.title = defaultTitle
+    }
 }
 
 // 全局前置路由守卫
+// eslint-disable-next-line no-unused-vars
 router.beforeEach((to, from, next) => {
+    console.log(`路由切换: ${from.fullPath} -> ${to.fullPath}`)
+
     // 1. 设置页面标题
-    if (to.meta.title) {
-        document.title = `${to.meta.title} - 图书购物车系统`
+    setPageTitle(to)
+
+    // 2. 获取用户状态
+    const userState = getUserState()
+
+    // 3. 检查路由权限
+    if (to.meta.requiresAuth) {
+        if (userState.isAuthenticated) {
+            const userRole = userState.userData.role
+            const requiredRole = to.meta.requiredRole
+
+            if ((requiredRole === 'owner' && userRole === 'owner') ||
+                (requiredRole === 'staff' && userRole !== 'owner')) {
+                next()
+            } else {
+                console.warn(`角色不匹配，无法访问 ${to.path}`)
+                next('/home')
+            }
+        } else {
+            console.log('用户未登录，跳转到登录页')
+            next({
+                path: '/login',
+                query: { redirect: to.fullPath }
+            })
+        }
+    } else if (to.meta.guest && userState.isAuthenticated) {
+        console.log('已登录用户访问游客页，重定向到主页')
+        const userRole = userState.userData.role
+        if (userRole === 'owner') {
+            next('/user-center')
+        } else {
+            next('/staff-center')
+        }
+    } else {
+        next()
     }
-
-    // 2. 检查用户登录状态
-    const user = getUserFromLocalStorage()
-
-    // 3. 验证需要登录的页面
-    if (to.meta.requiresAuth && !user) {
-        console.log('访问需要登录的页面，但用户未登录，跳转到登录页')
-        alert('请先登录后再操作！')
-        next({
-            path: '/login',
-            query: { redirect: to.fullPath }
-        })
-        return
-    }
-
-    // 4. 如果已登录且访问登录/注册页，跳转到首页
-    if (user && (to.path === '/login' || to.path === '/register')) {
-        console.log('已登录用户访问登录/注册页，跳转到首页')
-        next({ path: '/home' })
-        return
-    }
-
-    // 5. 所有验证通过，放行
-    next()
 })
 
 // 全局后置钩子
+// eslint-disable-next-line no-unused-vars
 router.afterEach((to, from) => {
-    console.log(`路由切换: ${from.path} -> ${to.path}`)
+    console.log(`✅ 成功进入页面: ${to.name || to.path}`)
 })
 
 export default router

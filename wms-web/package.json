@@ -8,10 +8,10 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.1",
+    "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.13.2",
     "core-js": "^3.8.3",
-    "element-plus": "^2.11.8",
+    "element-plus": "^2.13.0",
     "pinia": "^3.0.4",
     "vue": "^3.2.47",
     "vue-router": "^4.6.3"

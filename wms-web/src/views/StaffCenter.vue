@@ -1,6 +1,6 @@
 <template>
-  <div class="user-center">
-    <h1>欢迎来到车主中心</h1>
+  <div class="staff-center">
+    <h1>欢迎来到员工中心</h1>
     <p>您已成功登录！</p>
     <div class="user-info">
       <p><strong>姓名：</strong> {{ userName }}</p>
@@ -15,14 +15,21 @@
 
 <script>
 export default {
-  name: 'UserCenter',
+  name: 'StaffCenter',
   computed: {
     userName() {
       const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      return userInfo.name || '用户'
+      return userInfo.name || '员工'
     },
     userRoleName() {
-      return '车主'
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      const roleMap = {
+        'service': '服务顾问',
+        'mechanic': '维修技师',
+        'warehouse': '仓库管理员',
+        'admin': '管理员'
+      }
+      return roleMap[userInfo.role] || userInfo.role || '员工'
     }
   },
   methods: {
@@ -42,7 +49,7 @@ export default {
 </script>
 
 <style scoped>
-.user-center {
+.staff-center {
   padding: 40px 20px;
   max-width: 600px;
   margin: 0 auto;

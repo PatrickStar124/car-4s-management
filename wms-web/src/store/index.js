@@ -1,27 +1,17 @@
-// src/store/index.js
 import { createStore } from 'vuex'
+import user from './user'
 
 export default createStore({
     state: {
-        menu: [
-            {
-                menuclick: 'AppMain',
-                menuname: '用户管理',
-                menuicon: 'el-icon-user-solid'
-            }
-        ]
+        // 可以在这里添加全局状态
     },
     mutations: {
-        setMenu(state, menu) {
-            state.menu = menu
-        }
+        // 全局mutations
     },
     actions: {
-        updateMenu({ commit }, menu) {
-            commit('setMenu', menu)
-        }
+        // 全局actions
     },
-    getters: {
-        getMenu: state => state.menu
+    modules: {
+        user
     }
 })

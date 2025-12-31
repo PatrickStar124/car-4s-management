@@ -1,158 +1,235 @@
 <template>
-  <div class="login-page">
-    <div class="login-container">
+  <div class="login-container">
+    <div class="login-box">
+      <!-- Logo和标题 -->
       <div class="login-header">
-        <h2>用户登录</h2>
-        <p>欢迎回到图书购物车系统</p>
+        <h1>汽车4S店数字化服务平台</h1>
+        <p class="subtitle">专业服务，全程保障</p>
       </div>
 
-      <form @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label for="no">账号</label>
-          <input
-              id="no"
-              v-model="form.no"
-              type="text"
-              required
-              placeholder="请输入账号"
-              autocomplete="username"
-          >
-        </div>
-        <div class="form-group">
-          <label for="password">密码</label>
-          <input
-              id="password"
-              v-model="form.password"
-              type="password"
-              required
-              placeholder="请输入密码"
-              autocomplete="current-password"
-          >
-        </div>
+      <!-- 登录表单 -->
+      <div class="login-form">
+        <form @submit.prevent="handleLogin">
+          <div class="form-group">
+            <label for="username">工号/用户编号</label>
+            <input
+                id="username"
+                v-model="loginForm.username"
+                type="text"
+                placeholder="请输入工号或用户编号"
+                required
+                :disabled="loading"
+            />
+            <p class="hint">车主请输入注册时设置的用户编号</p>
+          </div>
 
-        <div class="form-options">
-          <label class="remember-me">
-            <input type="checkbox" v-model="rememberMe"> 记住我
-          </label>
-          <a href="#" class="forgot-password" @click.prevent="showForgotPassword">忘记密码？</a>
-        </div>
+          <div class="form-group password-input">
+            <label for="password">密码</label>
+            <input
+                id="password"
+                v-model="loginForm.password"
+                :type="showPassword ? 'text' : 'password'"
+                placeholder="请输入密码"
+                required
+                :disabled="loading"
+            />
+            <span class="toggle-password" @click="showPassword = !showPassword">
+              {{ showPassword ? '🙈' : '👁️' }}
+            </span>
+          </div>
 
-        <button type="submit" :disabled="loading" class="login-button">
-          {{ loading ? '登录中...' : '登录' }}
-        </button>
+          <div class="form-options">
+            <label class="remember-me">
+              <input type="checkbox" v-model="rememberMe" :disabled="loading">
+              记住我
+            </label>
+            <a href="#" class="forgot-password" @click.prevent="showForgotPassword = true">
+              忘记密码？
+            </a>
+          </div>
 
-        <div class="register-link">
-          还没有账号？<router-link to="/register">立即注册</router-link>
-        </div>
+          <button type="submit" class="submit-btn" :disabled="loading">
+            <span v-if="!loading">登录系统</span>
+            <span v-else class="loading">
+              <span class="loading-spinner"></span>
+              登录中...
+            </span>
+          </button>
+        </form>
 
-        <div class="demo-account" v-if="showDemo">
-          <p>测试账号：</p>
-          <p>账号：admin 密码：123456</p>
-          <p>账号：test 密码：123456</p>
+        <!-- 角色提示 -->
+        <div class="role-hint">
+          <h4>登录角色说明：</h4>
+          <ul>
+            <li><strong>车主</strong> - 使用注册时设置的用户编号登录</li>
+            <li><strong>服务顾问</strong> - 使用公司分配的工号登录</li>
+            <li><strong>维修技师</strong> - 使用公司分配的工号登录</li>
+            <li><strong>仓库管理员</strong> - 使用公司分配的工号登录</li>
+          </ul>
         </div>
-      </form>
+      </div>
+
+      <!-- 注册链接 -->
+      <div class="register-link">
+        <p>还不是车主？
+          <router-link to="/register">立即注册车主账号</router-link>
+        </p>
+        <p class="staff-register-note">
+          员工账号需由管理员创建，如有问题请联系管理员
+        </p>
+      </div>
+
+      <!-- 快速导航 -->
+      <div class="quick-nav">
+        <router-link to="/" class="nav-link">
+          <i class="icon-home"></i>
+          返回首页
+        </router-link>
+        <a href="#" class="nav-link" @click.prevent="showHelp = true">
+          <i class="icon-help"></i>
+          登录帮助
+        </a>
+      </div>
+    </div>
+
+    <!-- 忘记密码弹窗 -->
+    <div v-if="showForgotPassword" class="modal-overlay" @click="showForgotPassword = false">
+      <div class="modal-content" @click.stop>
+        <h3>忘记密码</h3>
+        <p>请联系您的管理员或拨打客服热线：400-1234-5678</p>
+        <button @click="showForgotPassword = false" class="modal-close">关闭</button>
+      </div>
+    </div>
+
+    <!-- 帮助弹窗 -->
+    <div v-if="showHelp" class="modal-overlay" @click="showHelp = false">
+      <div class="modal-content" @click.stop>
+        <h3>登录帮助</h3>
+        <div class="help-content">
+          <h4>常见问题：</h4>
+          <ol>
+            <li><strong>忘记用户编号/工号？</strong><br>车主请联系客服，员工请联系管理员</li>
+            <li><strong>忘记密码？</strong><br>请联系管理员重置密码</li>
+            <li><strong>无法登录？</strong><br>请检查网络连接，或联系技术支持</li>
+          </ol>
+          <div class="contact-info">
+            <p><strong>客服电话：</strong>400-1234-5678</p>
+            <p><strong>服务时间：</strong>8:00-20:00</p>
+          </div>
+        </div>
+        <button @click="showHelp = false" class="modal-close">我知道了</button>
+      </div>
     </div>
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
-export default {
-  name: 'LoginPage',
-  data() {
-    return {
-      form: {
-        no: '',
-        password: ''
-      },
-      rememberMe: false,
-      loading: false,
-      showDemo: true
+// 1. 创建 ref 响应式变量
+const showPassword = ref(false)
+const showForgotPassword = ref(false)
+const showHelp = ref(false)
+const rememberMe = ref(false)
+const loading = ref(false)
+
+const loginForm = ref({
+  username: '',
+  password: ''
+})
+
+// 2. 获取路由实例
+const router = useRouter()
+
+// 3. 定义 handleLogin 方法
+const handleLogin = async () => {
+  if (loading.value) return
+
+  if (!loginForm.value.username || !loginForm.value.password) {
+    alert('请输入完整的登录信息')
+    return
+  }
+
+  loading.value = true
+  try {
+    // 保存记住的账号
+    if (rememberMe.value) {
+      localStorage.setItem('rememberedUsername', loginForm.value.username)
+    } else {
+      localStorage.removeItem('rememberedUsername')
     }
-  },
-  created() {
-    // 检查是否有保存的账号
-    const savedNo = localStorage.getItem('saved_username')
-    if (savedNo) {
-      this.form.no = savedNo
-      this.rememberMe = true
+
+    // 发送登录请求
+    const response = await axios.post('/api/user/login', {}, {
+      params: {
+        no: loginForm.value.username,
+        password: loginForm.value.password
+      }
+    })
+
+    const result = response.data
+    if (result && result.code === 200) {
+      const userData = result.data
+      console.log('登录成功，用户数据：', userData)
+
+      // 将用户信息存储到 localStorage
+      localStorage.setItem('user', JSON.stringify(userData))
+      localStorage.setItem('token', 'login_success_token') // 使用一个有意义的 token
+
+      alert(`欢迎回来，${userData.name || userData.no}！`)
+
+      // 根据用户角色跳转到不同页面
+      if (userData.role === 'owner') {
+        router.push('/user-center')
+      } else {
+        // 假设除了 'owner' 之外的所有角色都是员工
+        router.push('/staff-center')
+      }
+    } else {
+      alert(result.msg || '登录失败，请检查用户名和密码')
     }
-  },
-  methods: {
-    async handleLogin() {
-      if (!this.form.no || !this.form.password) {
-        alert('请填写完整信息')
-        return
-      }
-
-      this.loading = true
-      try {
-        const response = await axios.post('http://localhost:8090/user/login', this.form)
-
-        if (response.data.code === 200) {
-          const user = response.data.data
-
-          // 保存用户信息
-          localStorage.setItem('user', JSON.stringify(user))
-
-          // 如果勾选了记住我，保存用户名
-          if (this.rememberMe) {
-            localStorage.setItem('saved_username', this.form.no)
-          } else {
-            localStorage.removeItem('saved_username')
-          }
-
-          alert('登录成功！')
-          this.$router.push('/')
-        } else {
-          alert(response.data.msg || '登录失败，请检查账号密码')
-        }
-      } catch (error) {
-        console.error('登录失败:', error)
-        if (error.response) {
-          alert(`登录失败: ${error.response.data.msg || '服务器错误'}`)
-        } else if (error.request) {
-          alert('网络错误，请检查网络连接')
-        } else {
-          alert('登录失败: ' + error.message)
-        }
-      } finally {
-        this.loading = false
-      }
-    },
-    showForgotPassword() {
-      alert('请联系管理员重置密码')
-    },
-    useDemoAccount(account) {
-      if (account === 'admin') {
-        this.form.no = 'admin'
-        this.form.password = '123456'
-      } else if (account === 'test') {
-        this.form.no = 'test'
-        this.form.password = '123456'
-      }
+  } catch (error) {
+    console.error('登录失败:', error)
+    let errorMsg = '登录失败，网络错误或服务器正忙'
+    if (error.response && error.response.data && error.response.data.msg) {
+      errorMsg = error.response.data.msg
     }
+    alert(errorMsg)
+  } finally {
+    loading.value = false
   }
 }
+
+// 4. 使用 onMounted 生命周期钩子
+onMounted(() => {
+  const savedUsername = localStorage.getItem('rememberedUsername')
+  if (savedUsername) {
+    loginForm.value.username = savedUsername
+    rememberMe.value = true
+  }
+})
 </script>
 
 <style scoped>
-.login-page {
+/* 你的样式部分保持不变，这里不再重复 */
+.login-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   padding: 20px;
 }
 
-.login-container {
-  width: 400px;
-  padding: 40px;
+.login-box {
   background: white;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  border-radius: 15px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 480px;
+  padding: 40px;
 }
 
 .login-header {
@@ -160,15 +237,20 @@ export default {
   margin-bottom: 30px;
 }
 
-.login-header h2 {
-  font-size: 28px;
+h1 {
+  color: #2c3e50;
+  font-size: 24px;
   margin-bottom: 8px;
-  color: #333;
 }
 
-.login-header p {
-  color: #666;
+.subtitle {
+  color: #7f8c8d;
   font-size: 14px;
+  margin: 0;
+}
+
+.login-form {
+  margin-bottom: 30px;
 }
 
 .form-group {
@@ -177,23 +259,51 @@ export default {
 
 .form-group label {
   display: block;
-  margin-bottom: 8px;
-  color: #555;
+  margin-bottom: 6px;
+  color: #4a5568;
   font-weight: 500;
+  font-size: 14px;
 }
 
 .form-group input {
   width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 16px;
-  transition: border-color 0.3s;
+  padding: 12px 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: all 0.3s;
+  box-sizing: border-box;
 }
 
 .form-group input:focus {
+  border-color: #4299e1;
   outline: none;
-  border-color: #1890ff;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
+.form-group input:disabled {
+  background-color: #f7fafc;
+  cursor: not-allowed;
+}
+
+.hint {
+  font-size: 12px;
+  color: #a0aec0;
+  margin-top: 5px;
+}
+
+.password-input {
+  position: relative;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 70%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  user-select: none;
+  font-size: 18px;
 }
 
 .form-options {
@@ -206,13 +316,14 @@ export default {
 .remember-me {
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #666;
+  gap: 6px;
+  font-size: 14px;
+  color: #718096;
   cursor: pointer;
 }
 
 .forgot-password {
-  color: #1890ff;
+  color: #4299e1;
   text-decoration: none;
   font-size: 14px;
 }
@@ -221,36 +332,95 @@ export default {
   text-decoration: underline;
 }
 
-.login-button {
+.submit-btn {
   width: 100%;
   padding: 14px;
-  background: #1890ff;
+  background: #4299e1;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.3s;
-  margin-bottom: 20px;
+  transition: all 0.3s;
+  margin-top: 10px;
 }
 
-.login-button:hover {
-  background: #40a9ff;
+.submit-btn:hover:not(:disabled) {
+  background: #3182ce;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(49, 130, 206, 0.3);
 }
 
-.login-button:disabled {
-  background: #d9d9d9;
+.submit-btn:disabled {
+  background: #a0aec0;
   cursor: not-allowed;
+}
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.role-hint {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  margin-top: 25px;
+  border-left: 4px solid #4299e1;
+}
+
+.role-hint h4 {
+  margin: 0 0 10px 0;
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.role-hint ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #4a5568;
+}
+
+.role-hint li {
+  margin-bottom: 6px;
+}
+
+.role-hint strong {
+  color: #2c3e50;
 }
 
 .register-link {
   text-align: center;
-  color: #666;
-  margin-bottom: 20px;
+  margin: 25px 0;
+  padding-top: 25px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.register-link p {
+  color: #718096;
+  font-size: 14px;
+  margin-bottom: 8px;
 }
 
 .register-link a {
-  color: #1890ff;
+  color: #4299e1;
   text-decoration: none;
   font-weight: 500;
 }
@@ -259,22 +429,130 @@ export default {
   text-decoration: underline;
 }
 
-.demo-account {
-  margin-top: 25px;
-  padding: 15px;
-  background: #f5f5f5;
-  border-radius: 4px;
+.staff-register-note {
+  font-size: 12px;
+  color: #a0aec0;
+  margin-top: 5px;
+}
+
+.quick-nav {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #718096;
+  text-decoration: none;
   font-size: 13px;
-  color: #666;
-  border-left: 4px solid #1890ff;
+  transition: color 0.3s;
 }
 
-.demo-account p {
+.nav-link:hover {
+  color: #4299e1;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 10px;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+}
+
+.modal-content h3 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.modal-content p {
+  color: #718096;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.help-content {
+  text-align: left;
+}
+
+.help-content h4 {
+  color: #2c3e50;
+  margin: 15px 0 10px 0;
+}
+
+.help-content ol {
+  padding-left: 20px;
+  margin-bottom: 15px;
+}
+
+.help-content li {
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.contact-info {
+  background-color: #f8f9fa;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.contact-info p {
   margin: 5px 0;
+  font-size: 13px;
 }
 
-.demo-account p:first-child {
-  font-weight: bold;
-  color: #333;
+.modal-close {
+  padding: 8px 20px;
+  background: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.modal-close:hover {
+  background: #3182ce;
+}
+
+/* 图标样式 */
+.icon-home::before { content: '🏠'; }
+.icon-help::before { content: '❓'; }
+
+@media (max-width: 480px) {
+  .login-box {
+    padding: 25px;
+    margin: 10px;
+  }
+
+  h1 {
+    font-size: 20px;
+  }
+
+  .quick-nav {
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+  }
 }
 </style>
