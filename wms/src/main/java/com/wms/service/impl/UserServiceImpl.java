@@ -23,6 +23,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public Result login(String no, String password) {
+        //  创建查询条件包装器
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(User::getNo, no)
                 .eq(User::getPassword, password)
@@ -30,13 +31,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         User loginUser = this.getOne(wrapper);
         if (loginUser != null) {
-            // 记录登录日志（可选）
-            // logService.saveLog(loginUser.getId(), "用户登录");
-
-            // 根据角色返回不同的菜单权限（后续扩展）
             return Result.suc(loginUser);
         }
         return Result.fail("用户名或密码错误");
+    }
+    private boolean checkUserExists(String no) {
+        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(User::getNo, no);
+        return this.count(wrapper) > 0;
     }
 
     @Override
@@ -65,9 +67,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             user.setIsValid("Y");
         }
 
-        // 4. 密码加密（建议添加）
-        // user.setPassword(passwordEncoder.encode(user.getPassword()));
-
         // 5. 保存用户
         boolean saved = this.save(user);
         return saved ? Result.suc("注册成功", user) : Result.fail("注册失败");
@@ -77,7 +76,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User getUserInfo(Integer id) {
         return this.getById(id);
     }
-
+    //按角色获取用户列表
     @Override
     public Result getUsersByRole(String role) {
         if (role == null || role.trim().isEmpty()) {
@@ -147,12 +146,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return this.list(wrapper);
     }
 
-    private boolean checkUserExists(String no) {
-        LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(User::getNo, no);
-        return this.count(wrapper) > 0;
-    }
 
+    //验证角色是否合法
     private boolean isValidRole(String role) {
         return ROLE_OWNER.equals(role) ||
                 ROLE_SERVICE.equals(role) ||
