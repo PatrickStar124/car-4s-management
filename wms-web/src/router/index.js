@@ -1,12 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import store from '@/store'
 import { ElMessage } from 'element-plus'
 
 const routes = [
-    {
-        path: '/',
-        redirect: '/home'
-    },
     {
         path: '/home',
         name: 'Home',
@@ -92,6 +87,18 @@ const routes = [
             roles: ['owner']
         }
     },
+    // =================== 新增：添加车辆的路由 ===================
+    {
+        path: '/vehicle/create',
+        name: 'VehicleCreate',
+        component: () => import('@/views/owner/VehicleCreate.vue'),
+        meta: {
+            title: '添加车辆',
+            requiresAuth: true,
+            roles: ['owner'] // 只有车主可以添加自己的车辆
+        }
+    },
+    // ==========================================================
     {
         path: '/placeholder/:type?/:id?',
         name: 'Placeholder',
@@ -114,46 +121,34 @@ const router = createRouter({
     }
 })
 
-// ========== 修改开始：新的 getUserState 函数 ==========
+// ========== 修正：更可靠的用户状态检查函数 ==========
 function getUserState() {
     // 1. 优先从 localStorage 获取用户信息
     const localUser = localStorage.getItem('user')
     const localToken = localStorage.getItem('token')
 
-    console.log('路由守卫检查用户状态:')
-    console.log('- localStorage.user:', localUser ? '有数据' : '无数据')
-    console.log('- localStorage.token:', localToken ? '有数据' : '无数据')
-
+    // 如果 localStorage 中有用户和token，则认为用户已登录
     if (localUser && localToken) {
         try {
             const userData = JSON.parse(localUser)
-            console.log('- 从localStorage解析用户数据成功:', {
-                id: userData.id,
-                no: userData.no,
-                role: userData.role,
-                name: userData.name
-            })
             return {
                 isAuthenticated: true,
                 userData: userData
             }
         } catch (error) {
-            console.error('❌ 解析localStorage用户数据失败:', error)
-            // 解析失败，清除无效数据
+            console.error('❌ 解析localStorage用户数据失败，将清除无效数据:', error)
             localStorage.removeItem('user')
             localStorage.removeItem('token')
         }
     }
 
-    // 2. 如果 localStorage 没有有效数据，从 store 获取
-    console.log('- 从store获取用户状态')
-    const storeState = store.state.user || {}
+    // 2. 如果 localStorage 没有有效数据，则认为用户未登录
     return {
-        isAuthenticated: !!storeState.isAuthenticated,
-        userData: storeState.userInfo || {}
+        isAuthenticated: false,
+        userData: null
     }
 }
-// ========== 修改结束 ==========
+// ========== 修正结束 ==========
 
 // 检查用户是否有权限访问
 function hasPermission(userRole, requiredRoles) {
@@ -164,8 +159,6 @@ function hasPermission(userRole, requiredRoles) {
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
-    console.log(`🚀 路由切换: ${from.path} -> ${to.path}`)
-
     // 设置页面标题
     const defaultTitle = '汽车4S店服务平台'
     if (to.meta.title) {
@@ -178,23 +171,13 @@ router.beforeEach((to, from, next) => {
     const userState = getUserState()
     const userRole = userState.userData ? userState.userData.role : null
 
-    console.log('📊 用户状态检查:')
-    console.log('- 是否认证:', userState.isAuthenticated)
-    console.log('- 用户角色:', userRole)
-    console.log('- 目标路由:', to.path)
-    console.log('- 需要认证:', to.meta.requiresAuth)
-    console.log('- 需要角色:', to.meta.roles)
-
     // 检查是否需要认证
     if (to.meta.requiresAuth) {
         if (userState.isAuthenticated) {
             // 检查角色权限
             if (hasPermission(userRole, to.meta.roles)) {
-                console.log('✅ 权限检查通过，允许访问')
                 next()
             } else {
-                // 角色不匹配，重定向到对应中心
-                console.log('❌ 角色权限不足，用户角色:', userRole, '需要的角色:', to.meta.roles)
                 ElMessage.error('您没有权限访问此页面')
                 if (userRole === 'owner') {
                     next('/user-center')
@@ -203,16 +186,13 @@ router.beforeEach((to, from, next) => {
                 }
             }
         } else {
-            // 未登录，跳转到登录页
-            console.log('❌ 未登录，跳转到登录页')
+            ElMessage.warning('请先登录')
             next({
                 path: '/login',
                 query: { redirect: to.fullPath }
             })
         }
     } else if (to.meta.guestOnly && userState.isAuthenticated) {
-        // 已登录用户访问游客页面，重定向到对应中心
-        console.log('ℹ️ 已登录用户访问游客页面，重定向')
         ElMessage.info('您已登录，将跳转到用户中心')
         if (userRole === 'owner') {
             next('/user-center')
@@ -220,14 +200,13 @@ router.beforeEach((to, from, next) => {
             next('/staff-center')
         }
     } else {
-        console.log('✅ 无需认证，允许访问')
         next()
     }
 })
 
 // 路由后置钩子
 router.afterEach(() => {
-    console.log('✅ 页面加载完成')
+    // 可以在这里添加页面加载完成后的逻辑
 })
 
 export default router

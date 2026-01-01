@@ -59,7 +59,8 @@
             <template #header>
               <div class="card-header">
                 <h3><el-icon><Truck /></el-icon> 我的车辆</h3>
-                <el-button type="text" @click="goToVehicleList">管理车辆</el-button>
+                <!-- 修改点：将“管理车辆”按钮的点击事件改为 goToAddVehicle -->
+                <el-button type="text" @click="goToAddVehicle">添加车辆</el-button>
               </div>
             </template>
 
@@ -67,7 +68,8 @@
             <div class="vehicle-list">
               <div v-if="vehicleList.length === 0" class="empty-vehicle">
                 <el-empty description="暂无车辆信息">
-                  <el-button type="primary" @click="goToVehicleList">添加车辆</el-button>
+                  <!-- 修改点：将“添加车辆”按钮的点击事件改为 goToAddVehicle -->
+                  <el-button type="primary" @click="goToAddVehicle">添加车辆</el-button>
                 </el-empty>
               </div>
 
@@ -90,15 +92,14 @@
                     </div>
                   </div>
                   <div class="vehicle-status">
-                    <el-tag size="small" type="info">正常</el-tag>
+                    <!-- 修复拼写错误：v-if="vehicleList.length > 3" -->
+                    <div v-if="vehicleList.length > 3" class="more-vehicles">
+                      <el-button type="text" @click="goToVehicleList">
+                        还有 {{ vehicleList.length - 3 }} 辆车
+                        <el-icon><ArrowRight /></el-icon>
+                      </el-button>
+                    </div>
                   </div>
-                </div>
-
-                <div v-if="vehicleList.length > 3" class="more-vehicles">
-                  <el-button type="text" @click="goToVehicleList">
-                    还有 {{ vehicleList.length - 3 }} 辆车
-                    <el-icon><ArrowRight /></el-icon>
-                  </el-button>
                 </div>
               </div>
             </div>
@@ -544,7 +545,13 @@ const getStatusTagType = (status) => {
   return types[status] || ''
 }
 
-// 路由跳转方法
+// ========== 路由跳转方法 ==========
+
+// 新增：跳转到“添加车辆”页面
+const goToAddVehicle = () => {
+  router.push('/vehicle/create')
+}
+
 const goToCreateAppointment = () => {
   router.push('/appointment/create')
 }
@@ -615,4 +622,5 @@ const contactCustomerService = () => {
 }
 
 /* 其他样式保持不变 */
+/* ... 你原有的其他样式 ... */
 </style>

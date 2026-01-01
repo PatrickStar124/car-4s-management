@@ -1,22 +1,27 @@
+// src/utils/request.js
+
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import store from '@/store'
 
 // 创建axios实例
 const request = axios.create({
-    baseURL: 'http://localhost:8999', // 后端端口：8999
+    // ✅ 修改点 1: 注释掉 baseURL，让它默认为空
+    // 这样就不会和你在 api 文件中写的 /api 前缀重复了
+    // baseURL: '/api',
     timeout: 15000,
     headers: {
         'Content-Type': 'application/json'
     }
 })
 
-// 请求拦截器
+// 请求拦截器 (这部分保持不变)
 request.interceptors.request.use(
     (config) => {
         // 打印请求信息便于调试
+        // 注意：这里的 config.baseURL 现在是 undefined，所以打印会有点问题，但不影响功能
         console.log('🚀 发送请求:', {
-            url: config.baseURL + config.url,
+            url: config.url, // 直接打印 config.url 即可
             method: config.method,
             params: config.params,
             data: config.data
@@ -36,7 +41,7 @@ request.interceptors.request.use(
     }
 )
 
-// 响应拦截器
+// 响应拦截器 (这部分保持不变)
 request.interceptors.response.use(
     (response) => {
         console.log('✅ 收到响应:', {
@@ -58,7 +63,8 @@ request.interceptors.response.use(
         if (result && typeof result === 'object') {
             // 如果后端返回了标准的Result格式
             if (result.code === 200 || result.code === 0) {
-                return result.data !== undefined ? result.data : result
+                // ✅ 这个修改点保持不变
+                return result;
             } else if (result.code === 401) {
                 // 未授权，清除用户状态
                 store.dispatch('user/logout')

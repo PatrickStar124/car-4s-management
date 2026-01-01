@@ -1,702 +1,353 @@
 <template>
   <div class="appointment-list-container">
     <!-- 页面标题和操作 -->
-    <div class="page-header">
-      <div class="header-content">
-        <h1><el-icon><List /></el-icon> 我的预约</h1>
-        <p class="page-desc">查看和管理您的所有维修保养预约记录</p>
+    <div class="page-header-actions">
+      <div class="page-header">
+        <h1><el-icon><Calendar /></el-icon> 我的预约</h1>
+        <p class="page-desc">查看和管理您的所有预约记录</p>
       </div>
-      <div class="header-actions">
-        <el-button type="primary" @click="goToCreateAppointment">
-          <el-icon><Plus /></el-icon> 新建预约
-        </el-button>
-        <el-button @click="refreshList">
-          <el-icon><Refresh /></el-icon> 刷新
+      <div class="page-actions">
+        <el-button
+            type="primary"
+            icon="Plus"
+            @click="goToCreateAppointment"
+            :disabled="!hasVehicles"
+        >
+          新预约
         </el-button>
       </div>
     </div>
 
-    <!-- 筛选和搜索区域 -->
-    <div class="filter-section">
-      <el-card shadow="never" class="filter-card">
-        <div class="filter-content">
-          <!-- 状态筛选 -->
-          <div class="filter-group">
-            <span class="filter-label">状态筛选：</span>
-            <el-radio-group v-model="filter.status" @change="handleFilterChange">
-              <el-radio-button label="all">全部</el-radio-button>
-              <el-radio-button v-for="status in statusOptions"
-                               :key="status.value"
-                               :label="status.value">
-                {{ status.label }}
-              </el-radio-button>
-            </el-radio-group>
-          </div>
+    <!-- 如果没有车辆，显示引导 -->
+    <div v-if="!hasVehicles" class="no-vehicles-guide">
+      <el-empty description="您还没有添加任何车辆，无法进行预约。">
+        <el-button type="primary" @click="goToAddVehicle">去添加车辆</el-button>
+      </el-empty>
+    </div>
 
-          <!-- 时间筛选 -->
-          <div class="filter-group">
-            <span class="filter-label">时间范围：</span>
+    <!-- 如果有车辆，显示预约列表 -->
+    <div v-else>
+      <!-- 搜索和筛选 -->
+      <div class="filter-container">
+        <el-form :inline="true" :model="queryParams" class="filter-form">
+          <el-form-item label="预约号">
+            <el-input
+                v-model="queryParams.appointmentNo"
+                placeholder="请输入预约号"
+                clearable
+                @keyup.enter="handleSearch"
+            />
+          </el-form-item>
+          <el-form-item label="车牌号码">
+            <el-select
+                v-model="queryParams.vehicleId"
+                placeholder="请选择车辆"
+                clearable
+                style="width: 180px"
+            >
+              <el-option
+                  v-for="vehicle in vehicleList"
+                  :key="vehicle.id"
+                  :label="vehicle.plateNumber"
+                  :value="vehicle.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="预约状态">
+            <el-select
+                v-model="queryParams.status"
+                placeholder="请选择状态"
+                clearable
+                style="width: 180px"
+            >
+              <el-option label="待确认" value="pending" />
+              <el-option label="已确认" value="confirmed" />
+              <el-option label="已完成" value="completed" />
+              <el-option label="已取消" value="canceled" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="预约时间">
             <el-date-picker
-                v-model="filter.dateRange"
+                v-model="dateRange"
                 type="daterange"
                 range-separator="至"
                 start-placeholder="开始日期"
                 end-placeholder="结束日期"
-                :shortcuts="dateShortcuts"
-                @change="handleFilterChange"
-                style="width: 300px"
+                style="width: 250px"
             />
-          </div>
-
-          <!-- 搜索框 -->
-          <div class="filter-group">
-            <el-input
-                v-model="filter.search"
-                placeholder="搜索预约号、车牌号、服务类型"
-                clearable
-                @clear="handleFilterChange"
-                @keyup.enter="handleFilterChange"
-                style="width: 300px"
-            >
-              <template #prefix>
-                <el-icon><Search /></el-icon>
-              </template>
-            </el-input>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- 统计卡片 -->
-    <div class="stats-section" v-if="appointmentStats">
-      <el-row :gutter="20">
-        <el-col :xs="12" :sm="6" v-for="stat in appointmentStats" :key="stat.type">
-          <el-card shadow="hover" class="stat-card" :class="`stat-${stat.type}`">
-            <div class="stat-content">
-              <div class="stat-icon">
-                <el-icon><component :is="stat.icon" /></el-icon>
-              </div>
-              <div class="stat-info">
-                <div class="stat-count">{{ stat.count }}</div>
-                <div class="stat-label">{{ stat.label }}</div>
-              </div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
-
-    <!-- 预约列表 -->
-    <el-card shadow="never" class="list-card">
-      <template #header>
-        <div class="list-header">
-          <h3>预约记录</h3>
-          <div class="list-summary">
-            <span>共 {{ pagination.total }} 条记录</span>
-            <span v-if="filter.status !== 'all'">（筛选：{{ getStatusLabel(filter.status) }}）</span>
-          </div>
-        </div>
-      </template>
-
-      <!-- 加载状态 -->
-      <div v-if="loading" class="loading-content">
-        <el-icon class="loading-icon"><Loading /></el-icon>
-        <span>加载中...</span>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
+            <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+          </el-form-item>
+        </el-form>
       </div>
 
-      <!-- 空状态 -->
-      <div v-else-if="appointmentList.length === 0" class="empty-content">
-        <el-empty description="暂无预约记录">
-          <el-button type="primary" @click="goToCreateAppointment">立即预约</el-button>
-        </el-empty>
-      </div>
-
-      <!-- 预约列表表格 -->
-      <div v-else class="appointment-table">
-        <div class="appointment-items">
-          <div
-              v-for="appointment in appointmentList"
-              :key="appointment.id"
-              class="appointment-item"
-              :class="`status-${appointment.status}`"
-          >
-            <div class="item-header">
-              <div class="item-title">
-                <span class="appointment-no">{{ appointment.appointmentNo }}</span>
-                <el-tag
-                    size="small"
-                    :type="getStatusTagType(appointment.status)"
-                    effect="light"
-                >
-                  {{ getStatusLabel(appointment.status) }}
-                </el-tag>
-              </div>
-              <div class="item-actions">
-                <el-button
-                    v-if="canCancel(appointment)"
-                    type="danger"
-                    size="small"
-                    plain
-                    @click="handleCancel(appointment)"
-                >
-                  取消预约
-                </el-button>
-                <el-button
-                    type="primary"
-                    size="small"
-                    plain
-                    @click="showDetail(appointment)"
-                >
-                  查看详情
-                </el-button>
-              </div>
-            </div>
-
-            <div class="item-content">
-              <!-- 车辆信息 -->
-              <div class="item-section">
-                <h4><el-icon><Truck /></el-icon> 车辆信息</h4>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <span class="label">车牌号：</span>
-                    <span class="value">{{ appointment.vehicle?.plateNumber || '未知' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="label">车型：</span>
-                    <span class="value">{{ appointment.vehicle?.brand }} {{ appointment.vehicle?.model }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 服务信息 -->
-              <div class="item-section">
-                <h4><el-icon><Setting /></el-icon> 服务信息</h4>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <span class="label">服务类型：</span>
-                    <span class="value">{{ getServiceTypeLabel(appointment.serviceType) }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="label">问题描述：</span>
-                    <span class="value">{{ appointment.problemDescription || '无' }}</span>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 时间信息 -->
-              <div class="item-section">
-                <h4><el-icon><Clock /></el-icon> 时间信息</h4>
-                <div class="info-grid">
-                  <div class="info-item">
-                    <span class="label">预约时间：</span>
-                    <span class="value">{{ formatDateTime(appointment.startTime) }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="label">持续时间：</span>
-                    <span class="value">{{ calculateDuration(appointment.startTime, appointment.endTime) }}</span>
-                  </div>
-                  <div class="info-item" v-if="appointment.serviceAdvisor">
-                    <span class="label">服务顾问：</span>
-                    <span class="value">{{ appointment.serviceAdvisor.name || appointment.serviceAdvisor.no }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- 底部信息 -->
-            <div class="item-footer">
-              <div class="create-time">
-                <el-icon><Time /></el-icon>
-                <span>创建时间：{{ formatDateTime(appointment.createTime) }}</span>
-              </div>
-              <div class="update-time" v-if="appointment.updateTime">
-                <el-icon><Refresh /></el-icon>
-                <span>更新时间：{{ formatDateTime(appointment.updateTime) }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
+      <!-- 表格 -->
+      <div class="table-container">
+        <el-table
+            v-loading="loading"
+            :data="appointmentList"
+            row-key="id"
+            border
+            style="width: 100%"
+        >
+          <!-- 表格列定义... (这部分保持不变) -->
+          <el-table-column label="预约号" prop="appointmentNo" :show-overflow-tooltip="true" />
+          <el-table-column label="车牌号码" prop="vehicle.plateNumber" :show-overflow-tooltip="true" />
+          <el-table-column label="车辆型号" prop="vehicle.brand" :show-overflow-tooltip="true">
+            <template #default="scope">
+              {{ scope.row.vehicle.brand }} {{ scope.row.vehicle.model }}
+            </template>
+          </el-table-column>
+          <el-table-column label="服务类型" prop="serviceType" :show-overflow-tooltip="true" />
+          <el-table-column label="预约时间" prop="startTime" width="240">
+            <template #default="scope">
+              <div>{{ formatDate(scope.row.startTime) }}</div>
+              <div class="text-gray-500 text-sm">{{ formatTime(scope.row.startTime) }} - {{ formatTime(scope.row.endTime) }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" prop="status" width="120">
+            <template #default="scope">
+              <el-tag :type="statusTagType[scope.row.status]">{{ statusLabel[scope.row.status] }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="服务顾问" prop="serviceAdvisor.name" :show-overflow-tooltip="true" />
+          <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
+            <template #default="scope">
+              <el-button
+                  size="small"
+                  type="success"
+                  icon="Edit"
+                  @click="viewAppointment(scope.row)"
+              >
+                详情
+              </el-button>
+              <el-button
+                  v-if="canCancel(scope.row)"
+                  size="small"
+                  type="warning"
+                  icon="Delete"
+                  @click="cancelAppointment(scope.row)"
+              >
+                取消
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
 
         <!-- 分页 -->
-        <div class="pagination-wrapper">
+        <div class="pagination-container">
           <el-pagination
-              v-model:current-page="pagination.currentPage"
-              v-model:page-size="pagination.pageSize"
-              :page-sizes="[5, 10, 20, 50]"
-              :total="pagination.total"
+              v-model:current-page="queryParams.pageNum"
+              v-model:page-size="queryParams.pageSize"
+              :total="total"
+              :page-sizes="[10, 20, 50, 100]"
+              background
               layout="total, sizes, prev, pager, next, jumper"
               @size-change="handleSizeChange"
               @current-change="handleCurrentChange"
           />
         </div>
       </div>
-    </el-card>
-
-    <!-- 预约详情弹窗 -->
-    <el-dialog
-        v-model="detailDialogVisible"
-        :title="`预约详情 - ${selectedAppointment?.appointmentNo || ''}`"
-        width="700px"
-        top="5vh"
-        destroy-on-close
-    >
-      <div v-if="selectedAppointment" class="appointment-detail">
-        <!-- 基本信息 -->
-        <div class="detail-section">
-          <h3><el-icon><InfoFilled /></el-icon> 基本信息</h3>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="预约号">
-              <el-tag>{{ selectedAppointment.appointmentNo }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="getStatusTagType(selectedAppointment.status)">
-                {{ getStatusLabel(selectedAppointment.status) }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="创建时间">
-              {{ formatDateTime(selectedAppointment.createTime) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="更新时间" v-if="selectedAppointment.updateTime">
-              {{ formatDateTime(selectedAppointment.updateTime) }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-
-        <!-- 车辆信息 -->
-        <div class="detail-section">
-          <h3><el-icon><Truck /></el-icon> 车辆信息</h3>
-          <div class="vehicle-info">
-            <div class="vehicle-avatar">
-              <el-avatar :size="60" :icon="Truck" />
-            </div>
-            <div class="vehicle-details">
-              <div class="detail-item">
-                <span class="label">车牌号：</span>
-                <span class="value">{{ selectedAppointment.vehicle?.plateNumber || '未知' }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">品牌型号：</span>
-                <span class="value">{{ selectedAppointment.vehicle?.brand }} {{ selectedAppointment.vehicle?.model }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">车架号：</span>
-                <span class="value">{{ selectedAppointment.vehicle?.vin || '未记录' }}</span>
-              </div>
-              <div class="detail-item">
-                <span class="label">车主：</span>
-                <span class="value">{{ selectedAppointment.owner?.name || selectedAppointment.owner?.no }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 服务信息 -->
-        <div class="detail-section">
-          <h3><el-icon><Setting /></el-icon> 服务信息</h3>
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="服务类型">
-              {{ getServiceTypeLabel(selectedAppointment.serviceType) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="问题描述">
-              {{ selectedAppointment.problemDescription || '无' }}
-            </el-descriptions-item>
-            <el-descriptions-item label="服务顾问" v-if="selectedAppointment.serviceAdvisor">
-              {{ selectedAppointment.serviceAdvisor.name || selectedAppointment.serviceAdvisor.no }}
-            </el-descriptions-item>
-          </el-descriptions>
-        </div>
-
-        <!-- 时间信息 -->
-        <div class="detail-section">
-          <h3><el-icon><Clock /></el-icon> 时间信息</h3>
-          <el-timeline>
-            <el-timeline-item
-                timestamp="预约开始"
-                placement="top"
-                :icon="Calendar"
-                type="primary"
-            >
-              {{ formatDateTime(selectedAppointment.startTime) }}
-            </el-timeline-item>
-            <el-timeline-item
-                timestamp="预约结束"
-                placement="top"
-                :icon="Clock"
-            >
-              {{ formatDateTime(selectedAppointment.endTime) }}
-            </el-timeline-item>
-            <el-timeline-item
-                v-if="selectedAppointment.updateTime"
-                timestamp="最近更新"
-                placement="top"
-                :icon="Refresh"
-                type="info"
-            >
-              {{ formatDateTime(selectedAppointment.updateTime) }}
-            </el-timeline-item>
-          </el-timeline>
-        </div>
-
-        <!-- 操作按钮 -->
-        <div class="detail-actions" v-if="canCancel(selectedAppointment)">
-          <el-button
-              type="danger"
-              :loading="canceling"
-              @click="confirmCancel(selectedAppointment)"
-          >
-            取消预约
-          </el-button>
-          <el-button @click="detailDialogVisible = false">关闭</el-button>
-        </div>
-      </div>
-    </el-dialog>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
-import {
-  List, Plus, Refresh, Search, Loading, Truck,
-  Setting, Clock, Time, Calendar, InfoFilled,
-  Timer, Check, Close, Warning, CircleCheck
-} from '@element-plus/icons-vue'
+import { Calendar } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import appointmentApi from '@/api/appointment'
+import vehicleApi from '@/api/vehicle' // 引入vehicleApi
 
 const router = useRouter()
 const store = useStore()
-
-// 数据状态
 const loading = ref(false)
-const canceling = ref(false)
-const appointmentList = ref([])
 
-// 筛选条件
-const filter = ref({
-  status: 'all',
-  dateRange: [],
-  search: ''
-})
+// 新增：车辆列表和是否有车辆的状态
+const vehicleList = ref([])
+const hasVehicles = computed(() => vehicleList.value.length > 0)
 
-// 分页配置
-const pagination = ref({
-  currentPage: 1,
+// 查询参数
+const queryParams = ref({
+  pageNum: 1,
   pageSize: 10,
-  total: 0
+  ownerId: store.getters['user/userId'],
+  appointmentNo: '',
+  vehicleId: undefined,
+  status: undefined,
+  startTime: undefined,
+  endTime: undefined
 })
 
-// 详情弹窗
-const detailDialogVisible = ref(false)
-const selectedAppointment = ref(null)
+// 日期范围
+const dateRange = ref([])
 
-// 状态选项
-const statusOptions = ref([
-  { value: 'pending', label: '待确认', icon: Timer },
-  { value: 'confirmed', label: '已确认', icon: Check },
-  { value: 'canceled', label: '已取消', icon: Close },
-  { value: 'completed', label: '已完成', icon: CircleCheck }
-])
+// 表格数据
+const appointmentList = ref([])
+const total = ref(0)
 
-// 服务类型映射
-const serviceTypeMap = ref({
-  maintenance: '常规保养',
-  repair: '故障维修',
-  inspection: '检测诊断',
-  beauty: '美容清洁',
-  other: '其他服务'
-})
+// 状态标签
+const statusLabel = {
+  pending: '待确认',
+  confirmed: '已确认',
+  completed: '已完成',
+  canceled: '已取消'
+}
 
-// 日期快捷方式
-const dateShortcuts = ref([
-  {
-    text: '最近一周',
-    value: () => {
-      const end = new Date()
-      const start = new Date()
-      start.setTime(start.getTime() - 3600 * 1000 * 24 * 7)
-      return [start, end]
-    }
-  },
-  {
-    text: '最近一个月',
-    value: () => {
-      const end = new Date()
-      const start = new Date()
-      start.setTime(start.getTime() - 3600 * 1000 * 24 * 30)
-      return [start, end]
-    }
-  },
-  {
-    text: '最近三个月',
-    value: () => {
-      const end = new Date()
-      const start = new Date()
-      start.setTime(start.getTime() - 3600 * 1000 * 24 * 90)
-      return [start, end]
-    }
-  }
-])
+const statusTagType = {
+  pending: 'info',
+  confirmed: 'success',
+  completed: 'success',
+  canceled: 'danger'
+}
 
-// 计算预约统计
-const appointmentStats = computed(() => {
-  if (!appointmentList.value.length) return null
-
-  const stats = {
-    total: { type: 'total', label: '全部预约', count: 0, icon: List, color: '#409eff' },
-    pending: { type: 'pending', label: '待确认', count: 0, icon: Timer, color: '#e6a23c' },
-    confirmed: { type: 'confirmed', label: '已确认', count: 0, icon: Check, color: '#67c23a' },
-    canceled: { type: 'canceled', label: '已取消', count: 0, icon: Close, color: '#909399' }
-  }
-
-  appointmentList.value.forEach(item => {
-    stats.total.count++
-    if (stats[item.status]) {
-      stats[item.status].count++
-    }
-  })
-
-  return Object.values(stats)
-})
-
-// 组件挂载
-onMounted(() => {
-  loadAppointments()
-})
-
-// 监听筛选条件变化
-watch(() => filter.value, () => {
-  pagination.value.currentPage = 1 // 重置到第一页
-  loadAppointments()
-}, { deep: true })
-
-// 加载预约列表
-const loadAppointments = async () => {
+// 加载数据
+const loadData = async () => {
   loading.value = true
   try {
-    const userId = store.state.user.userId
+    // 1. 先获取车辆列表
+    const vehicleRes = await vehicleApi.getVehiclesByOwner(queryParams.value.ownerId)
+    if (vehicleRes.code === 200) {
+      vehicleList.value = vehicleRes.data || []
+    }
 
-    // 获取所有预约
-    const response = await appointmentApi.getAppointmentsByOwner(userId)
+    // 2. 如果有车辆，再获取预约列表
+    if (hasVehicles.value) {
+      // 设置时间范围
+      if (dateRange.value && dateRange.value.length === 2) {
+        queryParams.value.startTime = dateRange.value[0].toISOString()
+        queryParams.value.endTime = dateRange.value[1].toISOString()
+      } else {
+        queryParams.value.startTime = undefined
+        queryParams.value.endTime = undefined
+      }
 
-    if (response.code === 200) {
-      let data = response.data || []
-
-      // 应用筛选条件
-      data = applyFilters(data)
-
-      // 更新总数
-      pagination.value.total = data.length
-
-      // 应用分页
-      const start = (pagination.value.currentPage - 1) * pagination.value.pageSize
-      const end = start + pagination.value.pageSize
-      appointmentList.value = data.slice(start, end)
+      const response = await appointmentApi.getAppointmentsByOwner(queryParams.value)
+      if (response.code === 200) {
+        appointmentList.value = response.data || []
+        total.value = response.total || 0
+      }
     } else {
-      ElMessage.error(response.message || '加载预约列表失败')
+      // 如果没有车辆，清空预约列表
       appointmentList.value = []
-      pagination.value.total = 0
+      total.value = 0
     }
   } catch (error) {
-    console.error('加载预约失败:', error)
-    ElMessage.error('加载预约列表失败，请稍后重试')
-    appointmentList.value = []
-    pagination.value.total = 0
+    console.error('加载数据失败:', error)
+    ElMessage.error('加载数据失败，请刷新页面重试')
   } finally {
     loading.value = false
   }
 }
 
-// 应用筛选条件
-const applyFilters = (data) => {
-  let filtered = [...data]
+// 组件挂载时加载
+onMounted(() => {
+  loadData()
+})
 
-  // 状态筛选
-  if (filter.value.status !== 'all') {
-    filtered = filtered.filter(item => item.status === filter.value.status)
-  }
-
-  // 日期范围筛选
-  if (filter.value.dateRange && filter.value.dateRange.length === 2) {
-    const [startDate, endDate] = filter.value.dateRange
-    filtered = filtered.filter(item => {
-      const itemDate = new Date(item.startTime)
-      return itemDate >= startDate && itemDate <= endDate
-    })
-  }
-
-  // 搜索筛选
-  if (filter.value.search) {
-    const searchTerm = filter.value.search.toLowerCase()
-    filtered = filtered.filter(item => {
-      return (
-          (item.appointmentNo && item.appointmentNo.toLowerCase().includes(searchTerm)) ||
-          (item.vehicle?.plateNumber && item.vehicle.plateNumber.toLowerCase().includes(searchTerm)) ||
-          (item.serviceType && getServiceTypeLabel(item.serviceType).toLowerCase().includes(searchTerm)) ||
-          (item.problemDescription && item.problemDescription.toLowerCase().includes(searchTerm))
-      )
-    })
-  }
-
-  // 按时间倒序排序
-  filtered.sort((a, b) => new Date(b.createTime) - new Date(a.createTime))
-
-  return filtered
+// 搜索
+const handleSearch = () => {
+  queryParams.value.pageNum = 1
+  loadData()
 }
 
-// 刷新列表
-const refreshList = () => {
-  loadAppointments()
-  ElMessage.success('列表已刷新')
+// 重置
+const resetQuery = () => {
+  queryParams.value = {
+    pageNum: 1,
+    pageSize: 10,
+    ownerId: store.getters['user/userId'],
+    appointmentNo: '',
+    vehicleId: undefined,
+    status: undefined
+  }
+  dateRange.value = []
+  loadData()
 }
 
-// 跳转到创建预约页面
+// 分页大小改变
+const handleSizeChange = (val) => {
+  queryParams.value.pageSize = val
+  queryParams.value.pageNum = 1
+  loadData()
+}
+
+// 当前页改变
+const handleCurrentChange = (val) => {
+  queryParams.value.pageNum = val
+  loadData()
+}
+
+// 查看详情
+const viewAppointment = (row) => {
+  router.push({ name: 'AppointmentDetail', query: { id: row.id } })
+}
+
+// 跳转到新增预约
 const goToCreateAppointment = () => {
   router.push('/appointment/create')
 }
 
-// 获取状态标签
-const getStatusLabel = (status) => {
-  const option = statusOptions.value.find(opt => opt.value === status)
-  return option ? option.label : status
-}
-
-// 获取状态标签类型
-const getStatusTagType = (status) => {
-  const types = {
-    pending: 'warning',
-    confirmed: 'success',
-    canceled: 'info',
-    completed: 'primary'
-  }
-  return types[status] || ''
-}
-
-// 获取服务类型标签
-const getServiceTypeLabel = (type) => {
-  return serviceTypeMap.value[type] || type
-}
-
-// 格式化日期时间
-const formatDateTime = (dateTime) => {
-  if (!dateTime) return '--'
-  const date = new Date(dateTime)
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-// 计算持续时间
-const calculateDuration = (startTime, endTime) => {
-  if (!startTime || !endTime) return '--'
-
-  const start = new Date(startTime)
-  const end = new Date(endTime)
-  const diffMs = end - start
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-
-  if (diffHours > 0) {
-    return `${diffHours}小时${diffMinutes}分钟`
-  } else {
-    return `${diffMinutes}分钟`
-  }
-}
-
-// 判断是否可以取消预约
-const canCancel = (appointment) => {
-  if (!appointment) return false
-
-  const validStatus = ['pending', 'confirmed']
-  if (!validStatus.includes(appointment.status)) return false
-
-  // 检查时间（提前2小时可取消）
-  const startTime = new Date(appointment.startTime)
-  const now = new Date()
-  const twoHoursBefore = new Date(startTime.getTime() - 2 * 60 * 60 * 1000)
-
-  return now < twoHoursBefore
-}
-
-// 显示详情
-const showDetail = (appointment) => {
-  selectedAppointment.value = appointment
-  detailDialogVisible.value = true
+// 【新增】跳转到添加车辆
+const goToAddVehicle = () => {
+  router.push('/vehicle/create')
 }
 
 // 取消预约
-const handleCancel = async (appointment) => {
+const cancelAppointment = async (row) => {
   try {
     await ElMessageBox.confirm(
-        `确定要取消预约 ${appointment.appointmentNo} 吗？`,
-        '确认取消',
+        '确定要取消该预约吗？',
+        '温馨提示',
         {
-          confirmButtonText: '确定取消',
-          cancelButtonText: '再想想',
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
           type: 'warning'
         }
     )
-
-    await cancelAppointment(appointment)
-
+    const response = await appointmentApi.cancelAppointment(row.id, store.getters['user/userId'])
+    if (response.code === 200) {
+      ElMessage.success('取消成功')
+      loadData()
+    } else {
+      ElMessage.error(response.message || '取消失败')
+    }
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('取消预约确认失败:', error)
+      console.error('取消预约失败:', error)
+      ElMessage.error('操作失败，请重试')
     }
   }
 }
 
-// 确认取消预约
-const confirmCancel = async (appointment) => {
-  await cancelAppointment(appointment)
-}
-
-// 执行取消预约操作
-const cancelAppointment = async (appointment) => {
-  canceling.value = true
-  try {
-    const userId = store.state.user.userId
-
-    const response = await appointmentApi.cancelAppointment(appointment.id, userId)
-
-    if (response.code === 200) {
-      ElMessage.success('预约已成功取消')
-      detailDialogVisible.value = false
-      loadAppointments() // 刷新列表
-    } else {
-      ElMessage.error(response.message || '取消预约失败')
-    }
-  } catch (error) {
-    console.error('取消预约失败:', error)
-    ElMessage.error('取消预约失败，请稍后重试')
-  } finally {
-    canceling.value = false
+// 判断是否可以取消
+const canCancel = (row) => {
+  if (row.status !== 'pending' && row.status !== 'confirmed') {
+    return false
   }
+  const startTime = new Date(row.startTime)
+  const twoHoursLater = new Date(Date.now() + 2 * 60 * 60 * 1000)
+  return startTime > twoHoursLater
 }
 
-// 筛选条件变化处理
-const handleFilterChange = () => {
-  loadAppointments()
+// 格式化日期
+const formatDate = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 }
 
-// 分页大小变化
-const handleSizeChange = (size) => {
-  pagination.value.pageSize = size
-  loadAppointments()
-}
-
-// 当前页变化
-const handleCurrentChange = (page) => {
-  pagination.value.currentPage = page
-  loadAppointments()
+// 格式化时间
+const formatTime = (dateStr) => {
+  if (!dateStr) return ''
+  const date = new Date(dateStr)
+  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 </script>
-
 <style scoped lang="scss">
 .appointment-list-container {
   max-width: 1200px;
@@ -730,7 +381,6 @@ const handleCurrentChange = (page) => {
       line-height: 1.6;
     }
   }
-
   .header-actions {
     display: flex;
     gap: 10px;
@@ -744,7 +394,6 @@ const handleCurrentChange = (page) => {
   .filter-card {
     border-radius: 8px;
   }
-
   .filter-content {
     display: flex;
     flex-wrap: wrap;

@@ -120,7 +120,7 @@
             <h4><el-icon><User /></el-icon> 选择服务顾问（可选）</h4>
             <el-select
                 v-model="formData.preferredAdvisorId"
-                placeholder="选择您偏好的服务顾问（可选）"
+                placeholder="选择服务顾问"
                 clearable
                 filterable
                 style="width: 100%"
@@ -452,7 +452,17 @@ const loadData = async () => {
 // 加载车辆列表
 const loadVehicles = async () => {
   try {
-    const userId = store.state.user.userId
+    // 【核心修改1】使用 getter 获取 userId
+    const userId = store.getters['user/userId']
+
+    // 增加健壮性检查
+    if (!userId) {
+      console.error('用户未登录或信息不完整，无法加载车辆列表。');
+      ElMessage.warning('用户信息无效，请重新登录');
+      vehicleList.value = [];
+      return;
+    }
+
     const response = await vehicleApi.getVehiclesByOwner(userId)
 
     if (response.code === 200) {
@@ -569,7 +579,7 @@ const isTimeSlotDisabled = (slot) => {
 }
 
 // 判断时间槽位是否有冲突（这里只是前端演示，真实冲突检查在后端）
-const isTimeSlotConflict = (slot) => {
+const isTimeSlotConflict = () => {
   // 这里可以添加更复杂的冲突检测逻辑
   // 实际项目中，冲突检测应该在后端进行
   return false
@@ -662,10 +672,20 @@ const submitAppointment = async () => {
       return
     }
 
+    // 【核心修改2】使用 getter 获取 userId
+    const userId = store.getters['user/userId']
+
+    // 增加健壮性检查
+    if (!userId) {
+      console.error('用户未登录或信息不完整，无法提交预约。');
+      ElMessage.warning('用户信息无效，请重新登录');
+      return;
+    }
+
     // 构建预约数据
     const appointmentData = {
       vehicleId: selectedVehicleId.value,
-      ownerId: store.state.user.userId,
+      ownerId: userId, // 使用从 getter 获取的 userId
       serviceType: formData.value.serviceType,
       problemDescription: formData.value.problemDescription,
       serviceAdvisorId: formData.value.preferredAdvisorId,
@@ -712,7 +732,6 @@ const submitAppointment = async () => {
   }
 }
 </script>
-
 <style scoped lang="scss">
 .appointment-create-container {
   max-width: 1200px;
