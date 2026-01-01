@@ -19,6 +19,7 @@
                 placeholder="请输入工号或用户编号"
                 required
                 :disabled="loading"
+                @keyup.enter="handleLogin"
             />
             <p class="hint">车主请输入注册时设置的用户编号</p>
           </div>
@@ -32,6 +33,7 @@
                 placeholder="请输入密码"
                 required
                 :disabled="loading"
+                @keyup.enter="handleLogin"
             />
             <span class="toggle-password" @click="showPassword = !showPassword">
               {{ showPassword ? '🙈' : '👁️' }}
@@ -126,9 +128,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import { ElMessage } from 'element-plus'
+import { login } from '@/api/auth'
 
-// 1. 创建 ref 响应式变量
+// 响应式变量
 const showPassword = ref(false)
 const showForgotPassword = ref(false)
 const showHelp = ref(false)
@@ -140,69 +143,104 @@ const loginForm = ref({
   password: ''
 })
 
-// 2. 获取路由实例
 const router = useRouter()
 
-// 3. 定义 handleLogin 方法
+// 登录处理函数
 const handleLogin = async () => {
+  // 防止重复提交
   if (loading.value) return
 
-  if (!loginForm.value.username || !loginForm.value.password) {
-    alert('请输入完整的登录信息')
+  // 表单验证
+  if (!loginForm.value.username.trim()) {
+    ElMessage.warning('请输入工号/用户编号')
     return
   }
 
+  if (!loginForm.value.password.trim()) {
+    ElMessage.warning('请输入密码')
+    return
+  }
+
+  // 设置加载状态
   loading.value = true
+
   try {
-    // 保存记住的账号
+    // 保存记住的用户名
     if (rememberMe.value) {
       localStorage.setItem('rememberedUsername', loginForm.value.username)
     } else {
       localStorage.removeItem('rememberedUsername')
     }
 
-    // 发送登录请求
-    const response = await axios.post('/api/user/login', {}, {
-      params: {
-        no: loginForm.value.username,
-        password: loginForm.value.password
-      }
+    console.log('正在登录...')
+
+    // 调用登录API
+    const response = await login({
+      username: loginForm.value.username,
+      password: loginForm.value.password
     })
 
-    const result = response.data
-    if (result && result.code === 200) {
-      const userData = result.data
-      console.log('登录成功，用户数据：', userData)
+    console.log('登录响应:', response)
 
-      // 将用户信息存储到 localStorage
-      localStorage.setItem('user', JSON.stringify(userData))
-      localStorage.setItem('token', 'login_success_token') // 使用一个有意义的 token
+    // 处理响应
+    if (response.code === 200) {
+      const userData = response.data
 
-      alert(`欢迎回来，${userData.name || userData.no}！`)
-
-      // 根据用户角色跳转到不同页面
-      if (userData.role === 'owner') {
-        router.push('/user-center')
-      } else {
-        // 假设除了 'owner' 之外的所有角色都是员工
-        router.push('/staff-center')
+      if (!userData) {
+        throw new Error('登录成功但未获取到用户信息')
       }
+
+      // 存储用户信息到localStorage
+      localStorage.setItem('user', JSON.stringify(userData))
+
+      // 如果有token就存储，否则生成一个模拟token
+      if (userData.token) {
+        localStorage.setItem('token', userData.token)
+      } else {
+        localStorage.setItem('token', `token-${userData.id || Date.now()}`)
+      }
+
+      // 显示成功消息
+      const userName = userData.name || userData.no || '用户'
+      ElMessage.success({
+        message: `欢迎回来，${userName}！`,
+        duration: 2000
+      })
+
+      // 根据角色跳转
+      setTimeout(() => {
+        if (userData.role === 'owner') {
+          router.push('/user-center')
+        } else {
+          router.push('/staff-center')
+        }
+      }, 1000)
+
     } else {
-      alert(result.msg || '登录失败，请检查用户名和密码')
+      // 登录失败
+      ElMessage.error(response.msg || '登录失败，请检查用户名和密码')
     }
+
   } catch (error) {
     console.error('登录失败:', error)
-    let errorMsg = '登录失败，网络错误或服务器正忙'
-    if (error.response && error.response.data && error.response.data.msg) {
-      errorMsg = error.response.data.msg
+
+    // 显示错误信息
+    let errorMsg = '登录失败，请检查网络连接'
+    if (error.message.includes('Network Error')) {
+      errorMsg = '无法连接到服务器，请检查网络或联系管理员'
+    } else if (error.message) {
+      errorMsg = error.message
     }
-    alert(errorMsg)
+
+    ElMessage.error(errorMsg)
+
   } finally {
+    // 重置加载状态
     loading.value = false
   }
 }
 
-// 4. 使用 onMounted 生命周期钩子
+// 页面加载时恢复记住的用户名
 onMounted(() => {
   const savedUsername = localStorage.getItem('rememberedUsername')
   if (savedUsername) {
@@ -213,7 +251,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 你的样式部分保持不变，这里不再重复 */
+/* 样式部分保持不变 */
 .login-container {
   display: flex;
   justify-content: center;
@@ -355,6 +393,7 @@ h1 {
 .submit-btn:disabled {
   background: #a0aec0;
   cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .loading {
@@ -529,6 +568,7 @@ h1 {
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
+  transition: background 0.3s;
 }
 
 .modal-close:hover {
@@ -539,6 +579,7 @@ h1 {
 .icon-home::before { content: '🏠'; }
 .icon-help::before { content: '❓'; }
 
+/* 响应式设计 */
 @media (max-width: 480px) {
   .login-box {
     padding: 25px;
