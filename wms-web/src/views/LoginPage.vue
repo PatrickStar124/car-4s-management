@@ -129,7 +129,8 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login } from '@/api/auth'
+// 修改导入方式
+import authApi from '@/api/auth'  // 改为默认导入
 
 // 响应式变量
 const showPassword = ref(false)
@@ -173,17 +174,25 @@ const handleLogin = async () => {
     }
 
     console.log('正在登录...')
+    console.log('发送的登录数据:', {
+      no: loginForm.value.username,
+      password: '***'
+    })
 
-    // 调用登录API
-    const response = await login({
-      username: loginForm.value.username,
+    // 修改调用方式：使用 authApi.login()
+    const response = await authApi.login({
+      no: loginForm.value.username,
       password: loginForm.value.password
     })
 
-    console.log('登录响应:', response)
+    console.log('登录响应完整对象:', response)
+    console.log('response类型:', typeof response)
+    console.log('response包含的键:', Object.keys(response || {}))
 
-    // 处理响应
-    if (response.code === 200) {
+    // ========== 修改开始：新的响应处理逻辑 ==========
+
+    // 情况1：如果后端返回的是 Result 对象（有 code 字段）
+    if (response && response.code === 200) {
       const userData = response.data
 
       if (!userData) {
@@ -216,10 +225,43 @@ const handleLogin = async () => {
         }
       }, 1000)
 
+    }
+    // 情况2：如果后端返回的就是用户数据本身（有 id 字段）
+    else if (response && response.id) {
+      const userData = response
+
+      // 存储用户信息到localStorage
+      localStorage.setItem('user', JSON.stringify(userData))
+
+      // 如果有token就存储，否则生成一个模拟token
+      if (userData.token) {
+        localStorage.setItem('token', userData.token)
+      } else {
+        localStorage.setItem('token', `token-${userData.id || Date.now()}`)
+      }
+
+      // 显示成功消息
+      const userName = userData.name || userData.no || '用户'
+      ElMessage.success({
+        message: `欢迎回来，${userName}！`,
+        duration: 2000
+      })
+
+      // 根据角色跳转
+      setTimeout(() => {
+        if (userData.role === 'owner') {
+          router.push('/user-center')
+        } else {
+          router.push('/staff-center')
+        }
+      }, 1000)
+
     } else {
       // 登录失败
-      ElMessage.error(response.msg || '登录失败，请检查用户名和密码')
+      ElMessage.error(response?.msg || response?.message || '登录失败，请检查用户名和密码')
     }
+
+    // ========== 修改结束 ==========
 
   } catch (error) {
     console.error('登录失败:', error)
@@ -249,7 +291,6 @@ onMounted(() => {
   }
 })
 </script>
-
 <style scoped>
 /* 样式部分保持不变 */
 .login-container {

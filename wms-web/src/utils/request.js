@@ -1,6 +1,6 @@
-// src/utils/request.js
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import store from '@/store'
 
 // 创建axios实例
 const request = axios.create({
@@ -22,8 +22,8 @@ request.interceptors.request.use(
             data: config.data
         })
 
-        // 从localStorage获取token
-        const token = localStorage.getItem('token')
+        // 从store获取token
+        const token = store.state.user.token
         if (token) {
             config.headers.Authorization = `Bearer ${token}`
         }
@@ -45,7 +45,41 @@ request.interceptors.response.use(
             data: response.data
         })
 
-        // 直接返回响应数据
+        const result = response.data
+
+        // 处理文件流等特殊响应
+        const contentType = response.headers['content-type']
+        if (contentType && (contentType.includes('application/octet-stream') ||
+            contentType.includes('application/vnd.ms-excel'))) {
+            return response
+        }
+
+        // 根据后端Result格式处理
+        if (result && typeof result === 'object') {
+            // 如果后端返回了标准的Result格式
+            if (result.code === 200 || result.code === 0) {
+                return result.data !== undefined ? result.data : result
+            } else if (result.code === 401) {
+                // 未授权，清除用户状态
+                store.dispatch('user/logout')
+                ElMessage.error(result.message || '登录已过期，请重新登录')
+
+                // 避免重复跳转
+                if (window.location.pathname !== '/login') {
+                    setTimeout(() => {
+                        window.location.href = '/login'
+                    }, 1500)
+                }
+                return Promise.reject(new Error(result.message || '未授权'))
+            } else {
+                // 其他业务错误
+                const errorMsg = result.message || result.msg || '操作失败'
+                ElMessage.error(errorMsg)
+                return Promise.reject(new Error(errorMsg))
+            }
+        }
+
+        // 如果后端返回的不是标准格式，直接返回
         return response.data
     },
     (error) => {
@@ -73,13 +107,12 @@ request.interceptors.response.use(
 
             switch (status) {
                 case 400:
-                    message = data.msg || '请求参数错误'
+                    message = data?.message || data?.msg || '请求参数错误'
                     break
                 case 401:
                     message = '登录已过期，请重新登录'
-                    // 清除本地存储
-                    localStorage.removeItem('token')
-                    localStorage.removeItem('user')
+                    // 清除用户状态
+                    store.dispatch('user/logout')
                     // 跳转到登录页
                     if (window.location.pathname !== '/login') {
                         window.location.href = '/login'
@@ -92,10 +125,10 @@ request.interceptors.response.use(
                     message = `请求的接口不存在: ${error.config.url}`
                     break
                 case 500:
-                    message = '服务器内部错误，请联系管理员'
+                    message = data?.message || data?.msg || '服务器内部错误，请联系管理员'
                     break
                 default:
-                    message = data.msg || `请求失败，状态码: ${status}`
+                    message = data?.message || data?.msg || `请求失败，状态码: ${status}`
             }
         }
         // 请求发送失败

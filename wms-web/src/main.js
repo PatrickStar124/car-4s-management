@@ -14,6 +14,10 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
     app.component(key, component)
 }
 
+// 初始化store - 确保在use之前调用
+// 修复：从 localStorage 恢复用户状态
+store.dispatch('user/init')
+
 // 使用插件
 app.use(store)
 app.use(router)
@@ -26,6 +30,3 @@ app.config.globalProperties.$ELEMENT = {
 
 // 最后挂载
 app.mount('#app')
-
-// 页面加载时恢复登录状态
-store.dispatch('restoreLogin')

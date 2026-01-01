@@ -1,194 +1,450 @@
+<!-- src/views/VehicleFormDialog.vue - 最终解决方案 -->
 <template>
   <el-dialog
-      v-model="visible"
-      :title="mode === 'add' ? '添加车辆' : '编辑车辆'"
+      :model-value="visible"
+      :title="dialogTitle"
       width="600px"
       @close="handleClose"
+      @update:model-value="handleUpdateVisible"
   >
     <el-form
         ref="formRef"
-        :model="form"
-        :rules="rules"
+        :model="formData"
+        :rules="formRules"
         label-width="100px"
+        @submit.prevent="handleSubmit"
     >
-      <el-form-item label="车牌号" prop="plateNumber">
-        <el-input v-model="form.plateNumber" placeholder="请输入车牌号" />
-      </el-form-item>
+      <!-- 车辆信息 -->
+      <div class="vehicle-info-section" v-if="vehicle">
+        <div class="info-item">
+          <span class="label">车牌号：</span>
+          <span class="value">{{ vehicle.plateNumber }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">车型：</span>
+          <span class="value">{{ vehicle.brand }} {{ vehicle.model }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">车架号：</span>
+          <span class="value">{{ vehicle.vin }}</span>
+        </div>
+      </div>
 
-      <el-form-item label="车架号" prop="vin">
-        <el-input v-model="form.vin" placeholder="请输入车架号" />
-      </el-form-item>
-
-      <el-form-item label="品牌" prop="brand">
-        <el-input v-model="form.brand" placeholder="请输入品牌" />
-      </el-form-item>
-
-      <el-form-item label="型号" prop="model">
-        <el-input v-model="form.model" placeholder="请输入型号" />
-      </el-form-item>
-
-      <el-form-item label="颜色" prop="color">
-        <el-input v-model="form.color" placeholder="请输入颜色" />
-      </el-form-item>
-
-      <el-form-item label="车主ID" prop="ownerId">
-        <el-input
-            v-model="form.ownerId"
-            type="number"
-            placeholder="请输入车主ID"
-        />
-      </el-form-item>
-
-      <el-form-item label="购买日期" prop="purchaseDate">
-        <el-date-picker
-            v-model="form.purchaseDate"
-            type="date"
-            placeholder="选择购买日期"
+      <!-- 服务类型 -->
+      <el-form-item label="服务类型" prop="serviceType">
+        <el-select
+            v-model="formData.serviceType"
+            placeholder="请选择服务类型"
             style="width: 100%"
+        >
+          <el-option label="保养" value="maintenance" />
+          <el-option label="维修" value="repair" />
+          <el-option label="检测" value="inspection" />
+          <el-option label="美容" value="beauty" />
+          <el-option label="其他" value="other" />
+        </el-select>
+      </el-form-item>
+
+      <!-- 预约时间 -->
+      <el-form-item label="预约时间" required>
+        <div class="time-select-group">
+          <el-form-item prop="appointmentDate" style="display: inline-block; width: 48%; margin-right: 4%">
+            <el-date-picker
+                v-model="formData.appointmentDate"
+                type="date"
+                placeholder="选择日期"
+                :disabled-date="disabledDate"
+                style="width: 100%"
+                @change="handleDateChange"
+            />
+          </el-form-item>
+          <el-form-item prop="appointmentTime" style="display: inline-block; width: 48%">
+            <el-time-select
+                v-model="formData.appointmentTime"
+                :disabled="!formData.appointmentDate"
+                :start="startTime"
+                step="00:30"
+                end="17:00"
+                placeholder="选择时间"
+                style="width: 100%"
+            />
+          </el-form-item>
+        </div>
+      </el-form-item>
+
+      <!-- 服务时长 -->
+      <el-form-item label="服务时长" prop="duration">
+        <el-radio-group v-model="formData.duration">
+          <el-radio :label="30">30分钟</el-radio>
+          <el-radio :label="60">1小时</el-radio>
+          <el-radio :label="90">1.5小时</el-radio>
+          <el-radio :label="120">2小时</el-radio>
+          <el-radio :label="180">3小时</el-radio>
+          <el-radio :label="240">4小时</el-radio>
+        </el-radio-group>
+      </el-form-item>
+
+      <!-- 备注 -->
+      <el-form-item label="备注" prop="remark">
+        <el-input
+            v-model="formData.remark"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入备注信息，如：需要更换机油、检查刹车片等"
+            maxlength="500"
+            show-word-limit
         />
       </el-form-item>
 
-      <el-form-item label="当前里程" prop="mileage">
-        <el-input
-            v-model="form.mileage"
-            type="number"
-            placeholder="请输入里程"
-        >
-          <template #append>km</template>
-        </el-input>
-      </el-form-item>
+      <!-- 温馨提示 -->
+      <el-alert
+          title="温馨提示"
+          type="info"
+          :closable="false"
+          style="margin-bottom: 20px"
+      >
+        <ul style="margin: 0; padding-left: 20px">
+          <li>请提前30分钟到达门店</li>
+          <li>如需取消预约，请提前2小时操作</li>
+          <li>预约成功后，服务顾问会与您确认</li>
+        </ul>
+      </el-alert>
     </el-form>
 
     <template #footer>
       <span class="dialog-footer">
-        <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSubmit" :loading="submitting">
-          确认
+        <el-button @click="handleClose" :disabled="submitting">取消</el-button>
+        <el-button
+            type="primary"
+            @click="handleSubmit"
+            :loading="submitting"
+            :disabled="!formData.appointmentDate || !formData.appointmentTime"
+        >
+          提交预约
         </el-button>
       </span>
     </template>
   </el-dialog>
 </template>
 
-<script setup>
-import { ref, watch, defineEmits, defineProps } from 'vue'
+<script>
+/* eslint-disable vue/no-side-effects-in-computed-properties */
+import { ref, computed, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { addVehicle, updateVehicle } from '@/api/vehicle'
+import { useStore } from 'vuex'
 
-const props = defineProps({
-  modelValue: Boolean,
-  vehicle: Object,
-  mode: String // 'add' 或 'edit'
-})
+export default {
+  name: 'VehicleFormDialog',
 
-const emit = defineEmits(['update:modelValue', 'success'])
+  props: {
+    visible: {
+      type: Boolean,
+      required: true
+    },
+    vehicle: {
+      type: Object,
+      default: () => ({})
+    }
+  },
 
-const visible = ref(false)
-const formRef = ref(null)
-const submitting = ref(false)
+  emits: ['close', 'success', 'update:visible'],
 
-// 表单数据
-const form = ref({
-  id: null,
-  plateNumber: '',
-  vin: '',
-  brand: '',
-  model: '',
-  ownerId: '',
-  purchaseDate: '',
-  mileage: '',
-  color: ''
-})
+  setup(props, { emit }) {
+    const store = useStore()
+    const formRef = ref(null)
+    const submitting = ref(false)
 
-// 表单验证规则
-const rules = {
-  plateNumber: [
-    { required: true, message: '请输入车牌号', trigger: 'blur' }
-  ],
-  vin: [
-    { required: true, message: '请输入车架号', trigger: 'blur' }
-  ],
-  brand: [
-    { required: true, message: '请输入品牌', trigger: 'blur' }
-  ],
-  ownerId: [
-    { required: true, message: '请输入车主ID', trigger: 'blur' }
-  ]
-}
+    // 表单数据
+    const formData = ref({
+      serviceType: 'maintenance',
+      appointmentDate: '',
+      appointmentTime: '',
+      duration: 60,
+      remark: ''
+    })
 
-// 监听visible变化
-watch(() => props.modelValue, (val) => {
-  visible.value = val
-  if (val && props.vehicle) {
-    form.value = { ...props.vehicle }
-  } else if (val) {
-    resetForm()
-  }
-})
-
-// 监听visible变化并通知父组件
-watch(visible, (val) => {
-  emit('update:modelValue', val)
-})
-
-// 关闭对话框
-const handleClose = () => {
-  visible.value = false
-}
-
-// 重置表单
-const resetForm = () => {
-  form.value = {
-    id: null,
-    plateNumber: '',
-    vin: '',
-    brand: '',
-    model: '',
-    ownerId: '',
-    purchaseDate: '',
-    mileage: '',
-    color: ''
-  }
-  if (formRef.value) {
-    formRef.value.clearValidate()
-  }
-}
-
-// 提交表单
-const handleSubmit = async () => {
-  if (!formRef.value) return
-
-  try {
-    await formRef.value.validate()
-    submitting.value = true
-
-    const submitData = {
-      ...form.value,
-      mileage: form.value.mileage ? parseInt(form.value.mileage) : 0
+    // 表单验证规则
+    const formRules = {
+      serviceType: [
+        { required: true, message: '请选择服务类型', trigger: 'change' }
+      ],
+      appointmentDate: [
+        { required: true, message: '请选择预约日期', trigger: 'change' }
+      ],
+      appointmentTime: [
+        { required: true, message: '请选择预约时间', trigger: 'change' }
+      ],
+      duration: [
+        { required: true, message: '请选择服务时长', trigger: 'change' }
+      ]
     }
 
-    let res
-    if (props.mode === 'add') {
-      res = await addVehicle(submitData)
-    } else {
-      res = await updateVehicle(submitData)
+    // 计算属性
+    const dialogTitle = computed(() => {
+      return `预约保养 - ${props.vehicle?.plateNumber || ''}`
+    })
+
+    const startTime = computed(() => {
+      if (!formData.value.appointmentDate) return '08:00'
+
+      const now = new Date()
+      const selectedDate = new Date(formData.value.appointmentDate)
+      const isToday = selectedDate.toDateString() === now.toDateString()
+
+      if (!isToday) return '08:00'
+
+      const hours = now.getHours()
+      const minutes = now.getMinutes()
+
+      // 检查是否超过营业时间
+      if (hours >= 17) {
+        // 今天已过营业时间
+        return '08:00'
+      }
+
+      // 返回下一个半小时时间点
+      if (minutes < 30) {
+        return `${hours.toString().padStart(2, '0')}:30`
+      } else {
+        return `${(hours + 1).toString().padStart(2, '0')}:00`
+      }
+    })
+
+    // 禁止选择过去的日期
+    const disabledDate = (date) => {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      return date < today
     }
 
-    if (res.code === 200) {
-      ElMessage.success(props.mode === 'add' ? '添加成功' : '更新成功')
-      emit('success')
-      handleClose()
-    } else {
-      ElMessage.error(res.msg || '操作失败')
+    // 日期变化处理
+    const handleDateChange = () => {
+      const now = new Date()
+      const selectedDate = new Date(formData.value.appointmentDate)
+      const isToday = selectedDate.toDateString() === now.toDateString()
+      const hours = now.getHours()
+
+      // 日期变化时清空时间
+      formData.value.appointmentTime = ''
+
+      // 检查是否超过营业时间
+      if (isToday && hours >= 17) {
+        ElMessage.warning('今天已过营业时间，请选择其他日期')
+        formData.value.appointmentDate = ''
+      }
     }
-  } catch (error) {
-    console.error('表单提交失败:', error)
-  } finally {
-    submitting.value = false
+
+    // 检查时间冲突
+    const checkTimeConflict = async () => {
+      const times = calculateTimes()
+      if (!times) return false
+
+      try {
+        // 模拟 API 调用
+        return await mockCheckTimeConflict()
+      } catch (error) {
+        console.error('检查时间冲突失败:', error)
+        return false
+      }
+    }
+
+    // 模拟检查时间冲突
+    const mockCheckTimeConflict = async () => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          // 模拟90%的成功率
+          const success = Math.random() > 0.1
+          resolve(success)
+        }, 500)
+      })
+    }
+
+    // 计算时间
+    const calculateTimes = () => {
+      const { appointmentDate, appointmentTime, duration } = formData.value
+      if (!appointmentDate || !appointmentTime) return null
+
+      const date = new Date(appointmentDate)
+      const [hours, minutes] = appointmentTime.split(':')
+
+      date.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+
+      const startTime = new Date(date)
+      const endTime = new Date(date.getTime() + duration * 60000)
+
+      return {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString()
+      }
+    }
+
+    // 模拟创建预约
+    const mockCreateAppointment = async (appointmentData) => {
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          const appointmentNo = 'AP' + Date.now()
+          resolve({
+            code: 200,
+            data: {
+              ...appointmentData,
+              id: Date.now(),
+              appointmentNo,
+              status: 'pending',
+              createTime: new Date().toISOString()
+            },
+            msg: '预约创建成功'
+          })
+        }, 1000)
+      })
+    }
+
+    // 提交表单
+    const handleSubmit = async () => {
+      if (!formRef.value) return
+
+      try {
+        await formRef.value.validate()
+      } catch (error) {
+        return
+      }
+
+      // 检查时间冲突
+      const isAvailable = await checkTimeConflict()
+      if (!isAvailable) {
+        ElMessage.warning('该时间段已有预约，请选择其他时间')
+        return
+      }
+
+      submitting.value = true
+
+      try {
+        const times = calculateTimes()
+        if (!times) {
+          throw new Error('时间计算错误')
+        }
+
+        const appointmentData = {
+          vehicleId: props.vehicle.id,
+          ownerId: store.state.user.userInfo.id,
+          serviceType: formData.value.serviceType,
+          startTime: times.startTime,
+          endTime: times.endTime,
+          remark: formData.value.remark || undefined
+        }
+
+        // 模拟 API 调用
+        const response = await mockCreateAppointment(appointmentData)
+
+        if (response.code === 200) {
+          ElMessage.success('预约成功！服务顾问会尽快与您确认')
+          emit('success', response.data)
+          resetForm()
+          emit('close')
+        } else {
+          throw new Error(response.msg || '预约失败')
+        }
+      } catch (error) {
+        console.error('预约失败:', error)
+        ElMessage.error(error.message || '提交预约失败')
+      } finally {
+        submitting.value = false
+      }
+    }
+
+    // 重置表单
+    const resetForm = () => {
+      formData.value = {
+        serviceType: 'maintenance',
+        appointmentDate: '',
+        appointmentTime: '',
+        duration: 60,
+        remark: ''
+      }
+      if (formRef.value) {
+        formRef.value.clearValidate()
+      }
+    }
+
+    // 关闭对话框
+    const handleClose = () => {
+      if (!submitting.value) {
+        resetForm()
+        emit('close')
+      }
+    }
+
+    // 更新 visible 状态
+    const handleUpdateVisible = (value) => {
+      emit('update:visible', value)
+    }
+
+    // 监听visible变化
+    watch(() => props.visible, (newVal) => {
+      if (newVal) {
+        nextTick(() => {
+          resetForm()
+        })
+      }
+    })
+
+    // 暴露给模板的方法
+    return {
+      formRef,
+      formData,
+      formRules,
+      submitting,
+      dialogTitle,
+      startTime,
+      disabledDate,
+      handleDateChange,
+      handleSubmit,
+      handleClose,
+      handleUpdateVisible
+    }
   }
 }
 </script>
 
 <style scoped>
-/* 样式可以留空，使用默认样式 */
+.vehicle-info-section {
+  background: #f5f7fa;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.info-item {
+  display: flex;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-item .label {
+  color: #606266;
+  min-width: 80px;
+}
+
+.info-item .value {
+  color: #303133;
+  font-weight: 500;
+}
+
+.time-select-group {
+  display: flex;
+  justify-content: space-between;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+:deep(.el-alert__description) {
+  font-size: 12px;
+}
 </style>

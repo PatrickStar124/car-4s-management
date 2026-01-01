@@ -4,13 +4,13 @@
     <div class="nav-left">
       <!-- Logo或网站名称 -->
       <router-link to="/" class="logo">
-        <i class="el-icon-s-promotion"></i>
+        <el-icon><Promotion /></el-icon>
         <span class="logo-text">4S店服务平台</span>
       </router-link>
 
       <!-- 公共导航项 -->
       <router-link to="/home" class="nav-link">
-        <i class="el-icon-house"></i>
+        <el-icon><House /></el-icon>
         <span>首页</span>
       </router-link>
 
@@ -19,33 +19,35 @@
         <!-- 车主专属菜单 -->
         <template v-if="user.role === 'owner'">
           <router-link to="/user-center" class="nav-link">
-            <i class="el-icon-user"></i>
+            <el-icon><User /></el-icon>
             <span>车主中心</span>
           </router-link>
-          <!-- 车主可以查看自己的车辆 -->
-          <router-link to="/user-center?tab=vehicles" class="nav-link">
-            <i class="el-icon-truck"></i>
+          <router-link to="/vehicle" class="nav-link">
+            <el-icon><Van /></el-icon>
             <span>我的车辆</span>
+          </router-link>
+          <router-link to="/appointment/list" class="nav-link">
+            <el-icon><Calendar /></el-icon>
+            <span>我的预约</span>
           </router-link>
         </template>
 
         <!-- 员工专属菜单 -->
         <template v-else>
           <router-link to="/staff-center" class="nav-link">
-            <i class="el-icon-office-building"></i>
+            <el-icon><OfficeBuilding /></el-icon>
             <span>员工中心</span>
           </router-link>
           <router-link to="/vehicle" class="nav-link" v-if="hasPermission('vehicle')">
-            <i class="el-icon-truck"></i>
+            <el-icon><Van /></el-icon>
             <span>车辆管理</span>
           </router-link>
-          <!-- 其他员工功能可以在这里添加 -->
           <router-link to="/placeholder/workorder" class="nav-link">
-            <i class="el-icon-document"></i>
+            <el-icon><Document /></el-icon>
             <span>工单管理</span>
           </router-link>
           <router-link to="/placeholder/stock" class="nav-link">
-            <i class="el-icon-box"></i>
+            <el-icon><Box /></el-icon>
             <span>配件库存</span>
           </router-link>
         </template>
@@ -61,26 +63,25 @@
             <el-avatar
                 :size="32"
                 :src="user.avatar"
-                v-if="user.avatar"
                 class="user-avatar"
             >
-              {{ user.name?.charAt(0) }}
+              {{ user.name?.charAt(0) || user.no?.charAt(0) || 'U' }}
             </el-avatar>
             <span class="welcome-text">
-              {{ user.role === 'owner' ? '车主' : '员工' }}：{{ user.name }}
+              {{ roleText }}：{{ user.name || user.no || '用户' }}
             </span>
-            <i class="el-icon-arrow-down el-icon--right"></i>
+            <el-icon><ArrowDown /></el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">
-                <i class="el-icon-user"></i>个人资料
+                <el-icon><User /></el-icon>个人资料
               </el-dropdown-item>
               <el-dropdown-item command="changePassword">
-                <i class="el-icon-lock"></i>修改密码
+                <el-icon><Lock /></el-icon>修改密码
               </el-dropdown-item>
               <el-dropdown-item divided command="logout">
-                <i class="el-icon-switch-button"></i>退出登录
+                <el-icon><SwitchButton /></el-icon>退出登录
               </el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -90,11 +91,11 @@
       <template v-else>
         <!-- 未登录状态 -->
         <router-link to="/login" class="nav-link">
-          <i class="el-icon-user"></i>
+          <el-icon><User /></el-icon>
           <span>登录</span>
         </router-link>
         <router-link to="/register" class="nav-link">
-          <i class="el-icon-edit"></i>
+          <el-icon><EditPen /></el-icon>
           <span>注册</span>
         </router-link>
       </template>
@@ -102,89 +103,128 @@
   </nav>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { computed } from 'vue'
-import { useUserStore } from '@/store/user'
-import { ElMessageBox } from 'element-plus'
+import { ElMessageBox, ElMessage } from 'element-plus'
+import {
+  Promotion,
+  House,
+  User,
+  Van,
+  Calendar,
+  OfficeBuilding,
+  Document,
+  Box,
+  ArrowDown,
+  Lock,
+  SwitchButton,
+  EditPen
+} from '@element-plus/icons-vue'
 
-export default {
-  name: 'NavBar',
+const router = useRouter()
 
-  setup() {
-    const router = useRouter()
-    const userStore = useUserStore()
+// 从localStorage获取用户信息
+const user = ref(null)
 
-    const user = computed(() => userStore.user)
+// 计算角色文本
+const roleText = computed(() => {
+  if (!user.value) return ''
+  const roleMap = {
+    'owner': '车主',
+    'service': '服务顾问',
+    'mechanic': '维修技师',
+    'warehouse': '仓库管理员',
+    'admin': '系统管理员'
+  }
+  return roleMap[user.value.role] || user.value.role
+})
 
-    // 检查权限（这里可以根据具体角色细化）
-    const hasPermission = (permission) => {
-      if (!user.value) return false
+// 检查权限
+const hasPermission = (permission) => {
+  if (!user.value) return false
 
-      // 员工都有车辆管理权限
-      if (permission === 'vehicle') {
-        return user.value.role !== 'owner'
-      }
+  if (permission === 'vehicle') {
+    return user.value.role !== 'owner'
+  }
 
-      return true
+  return true
+}
+
+// 初始化用户信息
+const loadUserFromLocalStorage = () => {
+  try {
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      user.value = JSON.parse(userStr)
+      console.log('导航栏加载用户信息:', user.value)
     }
-
-    // 处理下拉菜单命令
-    const handleCommand = async (command) => {
-      switch (command) {
-        case 'profile':
-          // 跳转到个人资料页面（暂时用占位页）
-          if (user.value.role === 'owner') {
-            router.push('/user-center?tab=profile')
-          } else {
-            router.push('/staff-center?tab=profile')
-          }
-          break
-
-        case 'changePassword':
-          router.push('/placeholder/password')
-          break
-
-        case 'logout':
-          await handleLogout()
-          break
-      }
-    }
-
-    // 处理退出登录
-    const handleLogout = async () => {
-      try {
-        await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
-          type: 'warning',
-          confirmButtonText: '确定',
-          cancelButtonText: '取消'
-        })
-
-        // 清除用户信息
-        userStore.clearUser()
-        localStorage.removeItem('user')
-        localStorage.removeItem('token')
-
-        // 提示并跳转到首页
-        router.push('/home')
-        setTimeout(() => {
-          // 使用Element Plus的消息提示
-          const { ElMessage } = require('element-plus')
-          ElMessage.success('已成功退出登录')
-        }, 100)
-      } catch (error) {
-        // 用户取消退出
-        console.log('取消退出登录')
-      }
-    }
-
-    return {
-      user,
-      hasPermission,
-      handleCommand
-    }
+  } catch (error) {
+    console.error('解析用户信息失败:', error)
   }
 }
+
+// 监听storage变化
+window.addEventListener('storage', (e) => {
+  if (e.key === 'user') {
+    loadUserFromLocalStorage()
+  }
+})
+
+// 处理下拉菜单命令
+const handleCommand = async (command) => {
+  switch (command) {
+    case 'profile':
+      if (user.value.role === 'owner') {
+        router.push('/user-center')
+      } else {
+        router.push('/staff-center')
+      }
+      break
+
+    case 'changePassword':
+      router.push('/placeholder/password')
+      ElMessage.info('修改密码功能开发中...')
+      break
+
+    case 'logout':
+      await handleLogout()
+      break
+  }
+}
+
+// 处理退出登录
+const handleLogout = async () => {
+  try {
+    await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
+      type: 'warning',
+      confirmButtonText: '确定',
+      cancelButtonText: '取消'
+    })
+
+    // 清除用户信息
+    user.value = null
+    localStorage.removeItem('user')
+    localStorage.removeItem('token')
+    localStorage.removeItem('rememberedUsername')
+
+    // 提示并跳转到首页
+    ElMessage.success('已成功退出登录')
+
+    setTimeout(() => {
+      router.push('/')
+    }, 500)
+
+  } catch (error) {
+    // 用户取消退出
+    console.log('取消退出登录')
+  }
+}
+
+// 组件挂载时加载用户信息
+onMounted(() => {
+  loadUserFromLocalStorage()
+})
 </script>
 
 <style scoped>
@@ -218,7 +258,7 @@ export default {
   text-decoration: none;
 }
 
-.logo i {
+.logo .el-icon {
   font-size: 24px;
 }
 
@@ -284,6 +324,10 @@ export default {
   font-size: 14px;
   font-weight: 500;
   color: white;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 响应式调整 */
@@ -304,12 +348,16 @@ export default {
     display: none;
   }
 
-  .nav-link i {
+  .nav-link .el-icon {
     margin-right: 0;
   }
 
   .welcome-text {
     display: none;
+  }
+
+  .user-info {
+    padding: 4px;
   }
 }
 </style>
