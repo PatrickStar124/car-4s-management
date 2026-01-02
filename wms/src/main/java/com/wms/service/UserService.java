@@ -41,4 +41,5 @@ public interface UserService extends IService<User> {
      * 获取所有维修技师
      */
     List<User> getMechanics();
+
 }

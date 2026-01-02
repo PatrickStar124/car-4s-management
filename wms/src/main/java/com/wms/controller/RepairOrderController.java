@@ -1,12 +1,15 @@
 package com.wms.controller;
 
 import com.wms.common.Result;
+import com.wms.entity.Appointment;
 import com.wms.entity.RepairOrder;
+import com.wms.service.AppointmentService;
 import com.wms.service.RepairOrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * 维修工单管理控制器
@@ -19,6 +22,42 @@ public class RepairOrderController {
     @Autowired
     private RepairOrderService repairOrderService;
 
+    @Autowired
+    private AppointmentService appointmentService;
+
+
+    /**
+     * ✅ 新增接口：从预约单创建维修工单
+     * @param appointmentId 预约单ID
+     * @return 操作结果
+     */
+    @PostMapping("/from-appointment/{appointmentId}")
+    public Result createFromAppointment(@PathVariable Integer appointmentId) {
+        // 1. 获取预约单信息
+        // 假设你的AppointmentService有getById方法
+        Appointment appointment = appointmentService.getById(appointmentId);
+        if (appointment == null) {
+            return Result.fail("预约单不存在");
+        }
+
+        // 2. 检查预约单状态是否为已确认
+        if (!"confirmed".equals(appointment.getStatus())) {
+            return Result.fail("只有已确认的预约才能转为工单");
+        }
+
+        // 3. 将预约信息转换为工单信息
+        RepairOrder order = new RepairOrder();
+        order.setOrderNo("RO" + System.currentTimeMillis()); // 生成工单号
+        order.setVehicleId(appointment.getVehicleId());
+        order.setOwnerId(appointment.getOwnerId());
+        order.setServiceAdvisorId(appointment.getServiceAdvisorId());
+        order.setStatus("pending"); // 工单初始状态为“待接车”
+        order.setProblemDesc("预约服务：" + appointment.getServiceType()); // 从预约服务类型生成问题描述
+        order.setCreateTime(LocalDateTime.now()); // 使用当前时间创建工单
+
+        // 4. 调用Service层创建工单
+        return repairOrderService.createOrder(order);
+    }
     /**
      * 创建维修工单
      * @param order 维修工单信息实体
