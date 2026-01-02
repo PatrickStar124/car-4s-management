@@ -35,7 +35,14 @@ public interface InventoryService extends IService<Inventory> {
     Result getLowStockWarning();
 
     /**
-     * 获取库存统计
+     * 获取全量库存列表
+     */
+    Result getAllInventory();
+
+    /**
+     * 获取库存统计数据
+     * 用途：统计库存总数量、总价值、各品类配件占比、出入库频次等维度的汇总数据
+     * @return 包含库存统计信息的Result对象
      */
     Result getInventoryStats();
 }

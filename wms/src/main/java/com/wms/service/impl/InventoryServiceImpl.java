@@ -270,4 +270,23 @@ public class InventoryServiceImpl extends ServiceImpl<InventoryMapper, Inventory
             return Result.fail("统计失败: " + e.getMessage());
         }
     }
+    @Override
+    public Result getAllInventory() {
+        try {
+            // 1. 获取所有库存记录
+            List<Inventory> inventoryList = this.list();
+
+            // 2. 关联配件信息（可选，如果需要的话）
+            inventoryList.forEach(inventory -> {
+                if (inventory.getPartId() != null) {
+                    Part part = partMapper.selectById(inventory.getPartId());
+                    inventory.setPart(part);
+                }
+            });
+
+            return Result.suc(inventoryList);
+        } catch (Exception e) {
+            return Result.fail("查询库存列表失败: " + e.getMessage());
+        }
+    }
 }
