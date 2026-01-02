@@ -64,10 +64,13 @@ public interface RepairOrderService extends IService<RepairOrder> {
      * 完成工单结算
      */
     Result completeOrder(Integer orderId, BigDecimal actualAmount);
-
-    // ✅ 在这里添加新方法的定义
     /**
-     * 根据技师ID获取其维修任务列表
+     * 根据技师ID查询其维修任务（新增）
      */
     Result getOrdersByMechanicId(Integer mechanicId, String status);
+
+    /**
+     * 技师查询自己待处理的任务（新增）
+     */
+    Result getMechanicPendingTasks(Integer mechanicId);
 }
