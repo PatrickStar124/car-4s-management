@@ -87,7 +87,28 @@ const routes = [
             roles: ['owner']
         }
     },
-    // =================== 新增：添加车辆的路由 ===================
+    {
+        path: '/service/order-detail',
+        name: 'OrderDetail',
+        component: () => import('@/views/service/OrderDetail.vue'),
+        meta: {
+            title: '工单详情',
+            requiresAuth: true,
+            roles: ['service']
+        }
+    },
+    // =================== 新增：维修技师【我的任务】路由 (START) ===================
+    {
+        path: '/mechanic/task-list',
+        name: 'MechanicTaskList',
+        component: () => import('@/views/mechanic/TaskList.vue'), // 指向我们要创建的文件
+        meta: {
+            title: '我的任务',
+            requiresAuth: true,
+            roles: ['mechanic'] // 只有维修技师可以访问
+        }
+    },
+    // =================== 新增：维修技师【我的任务】路由 (END) ===================
     {
         path: '/vehicle/create',
         name: 'VehicleCreate',
@@ -95,10 +116,9 @@ const routes = [
         meta: {
             title: '添加车辆',
             requiresAuth: true,
-            roles: ['owner'] // 只有车主可以添加自己的车辆
+            roles: ['owner']
         }
     },
-    // ==========================================================
     {
         path: '/placeholder/:type?/:id?',
         name: 'Placeholder',
@@ -121,13 +141,10 @@ const router = createRouter({
     }
 })
 
-// ========== 修正：更可靠的用户状态检查函数 ==========
 function getUserState() {
-    // 1. 优先从 localStorage 获取用户信息
     const localUser = localStorage.getItem('user')
     const localToken = localStorage.getItem('token')
 
-    // 如果 localStorage 中有用户和token，则认为用户已登录
     if (localUser && localToken) {
         try {
             const userData = JSON.parse(localUser)
@@ -142,24 +159,19 @@ function getUserState() {
         }
     }
 
-    // 2. 如果 localStorage 没有有效数据，则认为用户未登录
     return {
         isAuthenticated: false,
         userData: null
     }
 }
-// ========== 修正结束 ==========
 
-// 检查用户是否有权限访问
 function hasPermission(userRole, requiredRoles) {
     if (!requiredRoles || requiredRoles.length === 0) return true
     if (!userRole) return false
     return requiredRoles.includes(userRole)
 }
 
-// 路由守卫
 router.beforeEach((to, from, next) => {
-    // 设置页面标题
     const defaultTitle = '汽车4S店服务平台'
     if (to.meta.title) {
         document.title = `${to.meta.title} | ${defaultTitle}`
@@ -167,14 +179,11 @@ router.beforeEach((to, from, next) => {
         document.title = defaultTitle
     }
 
-    // 获取用户状态
     const userState = getUserState()
     const userRole = userState.userData ? userState.userData.role : null
 
-    // 检查是否需要认证
     if (to.meta.requiresAuth) {
         if (userState.isAuthenticated) {
-            // 检查角色权限
             if (hasPermission(userRole, to.meta.roles)) {
                 next()
             } else {
@@ -204,9 +213,7 @@ router.beforeEach((to, from, next) => {
     }
 })
 
-// 路由后置钩子
 router.afterEach(() => {
-    // 可以在这里添加页面加载完成后的逻辑
 })
 
 export default router

@@ -1,6 +1,16 @@
+// src/api/repairOrder.js
+
 import request from '@/utils/request'
 
 export default {
+    // ✅ 新增：从预约单创建维修工单
+    createOrderFromAppointment(appointmentId) {
+        return request({
+            url: `/api/repair-order/from-appointment/${appointmentId}`,
+            method: 'post'
+        })
+    },
+
     // 创建维修工单
     createOrder(data) {
         return request({

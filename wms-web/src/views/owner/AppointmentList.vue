@@ -92,7 +92,6 @@
             border
             style="width: 100%"
         >
-          <!-- 表格列定义... (这部分保持不变) -->
           <el-table-column label="预约号" prop="appointmentNo" :show-overflow-tooltip="true" />
           <el-table-column label="车牌号码" prop="vehicle.plateNumber" :show-overflow-tooltip="true" />
           <el-table-column label="车辆型号" prop="vehicle.brand" :show-overflow-tooltip="true">
@@ -161,17 +160,15 @@ import { useStore } from 'vuex'
 import { Calendar } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import appointmentApi from '@/api/appointment'
-import vehicleApi from '@/api/vehicle' // 引入vehicleApi
+import vehicleApi from '@/api/vehicle'
 
 const router = useRouter()
 const store = useStore()
 const loading = ref(false)
 
-// 新增：车辆列表和是否有车辆的状态
 const vehicleList = ref([])
 const hasVehicles = computed(() => vehicleList.value.length > 0)
 
-// 查询参数
 const queryParams = ref({
   pageNum: 1,
   pageSize: 10,
@@ -183,14 +180,11 @@ const queryParams = ref({
   endTime: undefined
 })
 
-// 日期范围
 const dateRange = ref([])
 
-// 表格数据
 const appointmentList = ref([])
 const total = ref(0)
 
-// 状态标签
 const statusLabel = {
   pending: '待确认',
   confirmed: '已确认',
@@ -205,7 +199,7 @@ const statusTagType = {
   canceled: 'danger'
 }
 
-// 加载数据
+// ✅ 修改：加载数据的核心方法
 const loadData = async () => {
   loading.value = true
   try {
@@ -217,22 +211,16 @@ const loadData = async () => {
 
     // 2. 如果有车辆，再获取预约列表
     if (hasVehicles.value) {
-      // 设置时间范围
-      if (dateRange.value && dateRange.value.length === 2) {
-        queryParams.value.startTime = dateRange.value[0].toISOString()
-        queryParams.value.endTime = dateRange.value[1].toISOString()
-      } else {
-        queryParams.value.startTime = undefined
-        queryParams.value.endTime = undefined
-      }
+      // ✅ 修改：API调用参数错误，应该只传递 ownerId，而不是整个 queryParams 对象
+      const response = await appointmentApi.getAppointmentsByOwner(queryParams.value.ownerId)
 
-      const response = await appointmentApi.getAppointmentsByOwner(queryParams.value)
       if (response.code === 200) {
         appointmentList.value = response.data || []
-        total.value = response.total || 0
+
+        // ✅ 修改：你的后端目前返回所有数据，total 应该是数据的总长度
+        total.value = response.data.length || 0
       }
     } else {
-      // 如果没有车辆，清空预约列表
       appointmentList.value = []
       total.value = 0
     }
@@ -244,18 +232,15 @@ const loadData = async () => {
   }
 }
 
-// 组件挂载时加载
 onMounted(() => {
   loadData()
 })
 
-// 搜索
 const handleSearch = () => {
   queryParams.value.pageNum = 1
   loadData()
 }
 
-// 重置
 const resetQuery = () => {
   queryParams.value = {
     pageNum: 1,
@@ -269,35 +254,29 @@ const resetQuery = () => {
   loadData()
 }
 
-// 分页大小改变
 const handleSizeChange = (val) => {
   queryParams.value.pageSize = val
   queryParams.value.pageNum = 1
   loadData()
 }
 
-// 当前页改变
 const handleCurrentChange = (val) => {
   queryParams.value.pageNum = val
   loadData()
 }
 
-// 查看详情
 const viewAppointment = (row) => {
   router.push({ name: 'AppointmentDetail', query: { id: row.id } })
 }
 
-// 跳转到新增预约
 const goToCreateAppointment = () => {
   router.push('/appointment/create')
 }
 
-// 【新增】跳转到添加车辆
 const goToAddVehicle = () => {
   router.push('/vehicle/create')
 }
 
-// 取消预约
 const cancelAppointment = async (row) => {
   try {
     await ElMessageBox.confirm(
@@ -324,7 +303,6 @@ const cancelAppointment = async (row) => {
   }
 }
 
-// 判断是否可以取消
 const canCancel = (row) => {
   if (row.status !== 'pending' && row.status !== 'confirmed') {
     return false
@@ -334,14 +312,12 @@ const canCancel = (row) => {
   return startTime > twoHoursLater
 }
 
-// 格式化日期
 const formatDate = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })
 }
 
-// 格式化时间
 const formatTime = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)

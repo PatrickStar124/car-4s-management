@@ -6,6 +6,34 @@
       <p><strong>姓名：</strong> {{ userName }}</p>
       <p><strong>角色：</strong> {{ userRoleName }}</p>
     </div>
+
+    <!-- =================== 新增：角色功能区 (START) =================== -->
+    <div class="role-actions" v-if="userRole">
+      <h2>工作台</h2>
+      <div class="action-buttons">
+        <!-- 服务顾问 -->
+        <router-link to="/service/appointment-manage" v-if="userRole === 'service'">
+          <el-button type="primary" size="large" icon="Calendar">预约管理</el-button>
+        </router-link>
+
+        <!-- 维修技师 -->
+        <router-link to="/mechanic/task-list" v-if="userRole === 'mechanic'">
+          <el-button type="success" size="large" icon="Wrench">我的任务</el-button>
+        </router-link>
+
+        <!-- 仓库管理员 (占位符) -->
+        <router-link to="/placeholder/warehouse" v-if="userRole === 'warehouse'">
+          <el-button type="warning" size="large" icon="Box">配件管理</el-button>
+        </router-link>
+
+        <!-- 管理员 (占位符) -->
+        <router-link to="/placeholder/admin" v-if="userRole === 'admin'">
+          <el-button type="danger" size="large" icon="User">用户管理</el-button>
+        </router-link>
+      </div>
+    </div>
+    <!-- =================== 新增：角色功能区 (END) =================== -->
+
     <div class="actions">
       <button @click="goToHome" class="btn">返回首页</button>
       <button @click="logout" class="btn logout-btn">退出登录</button>
@@ -14,6 +42,13 @@
 </template>
 
 <script>
+// 确保你已经安装并全局注册了 Element Plus 图标
+// 如果没有，请在 main.js 中添加：
+// import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+// for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+//   app.component(key, component)
+// }
+
 export default {
   name: 'StaffCenter',
   computed: {
@@ -30,6 +65,11 @@ export default {
         'admin': '管理员'
       }
       return roleMap[userInfo.role] || userInfo.role || '员工'
+    },
+    // ✅ 新增：获取原始角色值，用于判断显示哪个按钮
+    userRole() {
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      return userInfo.role
     }
   },
   methods: {
@@ -61,12 +101,28 @@ h1 {
   margin-bottom: 20px;
 }
 
+h2 {
+  color: #444;
+  margin: 30px 0 20px;
+}
+
 .user-info {
   background: #f5f5f5;
   padding: 20px;
   border-radius: 8px;
   margin: 30px 0;
   text-align: left;
+}
+
+/* ✅ 新增：角色功能区样式 */
+.role-actions {
+  margin: 40px 0;
+}
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap; /* 允许按钮换行 */
 }
 
 .actions {
