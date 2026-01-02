@@ -71,4 +71,11 @@ public class InventoryController {
     public Result getInventoryStats() {
         return inventoryService.getInventoryStats();
     }
+    /**
+     * 获取所有库存列表
+     */
+    @GetMapping("/list")
+    public Result getInventoryList() {
+        return inventoryService.getAllInventory();
+    }
 }

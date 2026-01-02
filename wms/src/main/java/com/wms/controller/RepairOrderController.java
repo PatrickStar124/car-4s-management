@@ -3,8 +3,8 @@ package com.wms.controller;
 import com.wms.common.Result;
 import com.wms.entity.Appointment;
 import com.wms.entity.RepairOrder;
+import com.wms.service.AppointmentService;
 import com.wms.service.RepairOrderService;
-import com.wms.service.AppointmentService; // ✅ 确保引入
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,6 +24,7 @@ public class RepairOrderController {
 
     @Autowired
     private AppointmentService appointmentService;
+
 
     /**
      * ✅ 新增接口：从预约单创建维修工单
