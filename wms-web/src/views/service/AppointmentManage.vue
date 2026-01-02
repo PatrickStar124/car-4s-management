@@ -1,3 +1,4 @@
+<!-- src/views/service/AppointmentManage.vue -->
 <template>
   <div class="appointment-manage-container">
     <div class="page-header">
@@ -45,9 +46,12 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <!-- 新增：已分配技师列 -->
+        <el-table-column prop="assignedMechanicName" label="已分配技师" min-width="150" />
+
+        <el-table-column label="操作" width="350" fixed="right">
           <template #default="scope">
-            <!-- 确认并创建工单按钮 -->
+            <!-- 1. 如果状态是“待处理”，只显示“确认并创建工单”按钮 -->
             <el-button
                 v-if="scope.row.status === 'pending'"
                 type="primary"
@@ -57,27 +61,42 @@
               确认并创建工单
             </el-button>
 
-            <!-- =================== 新增：“查看工单”按钮 (START) =================== -->
-            <el-button
-                v-else-if="scope.row.status === 'confirmed'"
-                type="success"
-                size="small"
-                icon="View"
-                @click="goToOrderDetail(scope.row)"
-            >
-              查看工单
-            </el-button>
-            <!-- =================== 新增：“查看工单”按钮 (END) =================== -->
+            <!-- 2. 如果状态不是“待处理”，则进入后续逻辑 -->
+            <template v-else>
+              <!-- 2.1 如果 orderId 存在（说明工单已创建） -->
+              <template v-if="scope.row.orderId">
+                <!-- 显示“查看工单”按钮 -->
+                <el-button
+                    type="success"
+                    size="small"
+                    :icon="View"
+                    @click="goToOrderDetail(scope.row)"
+                >
+                  查看工单
+                </el-button>
 
-            <!-- 已处理按钮 -->
-            <el-button
-                v-else
-                type="default"
-                size="small"
-                disabled
-            >
-              已处理
-            </el-button>
+                <!-- 如果还未分配技师，则显示“分配技师”按钮 -->
+                <el-button
+                    v-if="!scope.row.assignedMechanicId"
+                    type="info"
+                    size="small"
+                    :icon="User"
+                    @click="openAssignMechanicDialog(scope.row)"
+                >
+                  分配技师
+                </el-button>
+              </template>
+
+              <!-- 2.2 如果 orderId 不存在（例如状态为“已取消”），则显示“已处理” -->
+              <el-button
+                  v-else
+                  type="default"
+                  size="small"
+                  disabled
+              >
+                已处理
+              </el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
@@ -86,40 +105,69 @@
         <el-empty description="暂无预约信息" />
       </div>
     </el-card>
+
+    <!-- 新增：分配技师弹窗 -->
+    <el-dialog
+        title="分配维修技师"
+        v-model="assignDialogVisible"
+        width="400px"
+        @close="resetAssignForm"
+    >
+      <el-form :model="assignForm" label-width="80px">
+        <el-form-item label="维修技师" prop="mechanicId">
+          <el-select v-model="assignForm.mechanicId" placeholder="请选择技师" clearable>
+            <el-option
+                v-for="mechanic in mechanicList"
+                :key="mechanic.id"
+                :label="mechanic.name"
+                :value="mechanic.id"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="assignDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitAssign">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router' // ✅ 新增：引入 useRouter
+import { useRouter } from 'vue-router'
 import { useStore } from 'vuex'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CalendarCheck } from '@element-plus/icons-vue' // ✅ 新增：引入 View 图标
+import { CalendarCheck, View, User } from '@element-plus/icons-vue'
 import appointmentApi from '@/api/appointment'
 import repairOrderApi from '@/api/repairOrder'
+// 假设你有一个获取用户信息的API文件
+import userApi from '@/api/user'
 
-const router = useRouter() // ✅ 新增：初始化 router
+const router = useRouter()
 const store = useStore()
 const loading = ref(true)
 const appointmentList = ref([])
 const statusFilter = ref('pending')
 
-// =================== 新增：跳转到工单详情页的方法 (START) ===================
-const goToOrderDetail = (appointment) => {
-  // 从当前行数据中获取之前保存的 orderId
-  const orderId = appointment.orderId;
+// --- 新增：分配技师相关变量 ---
+const assignDialogVisible = ref(false)
+const assignForm = ref({ mechanicId: null })
+const mechanicList = ref([]) // 维修技师列表
+const currentAppointment = ref(null) // 当前操作的预约/工单
 
+// ✅ 核心修正：跳转工单详情页的方法
+const goToOrderDetail = (appointment) => {
+  const orderId = appointment.orderId;
   if (orderId) {
     router.push({
-      name: 'OrderDetail', // 使用路由的 name 进行跳转
-      query: { id: orderId } // 将工单ID作为参数传递
+      name: 'OrderDetail',
+      params: { id: orderId }
     })
   } else {
-    ElMessage.warning('未能找到关联的工单信息，可能需要刷新页面。')
+    ElMessage.warning('未能找到关联的工单信息，请刷新页面重试。')
   }
 }
-// =================== 新增：跳转到工单详情页的方法 (END) ===================
-
 
 const loadAppointments = async () => {
   loading.value = true
@@ -128,7 +176,7 @@ const loadAppointments = async () => {
     if (response.code === 200) {
       appointmentList.value = response.data
     } else {
-      ElMessage.error(response.msg || '获取预约列表失败')
+      ElMessage.error('获取预约列表失败')
     }
   } catch (error) {
     console.error('加载预约列表失败:', error)
@@ -138,6 +186,7 @@ const loadAppointments = async () => {
   }
 }
 
+// ✅ 核心优化：实现 handleConfirmAppointment 函数
 const handleConfirmAppointment = async (appointment) => {
   try {
     await ElMessageBox.confirm(
@@ -147,30 +196,95 @@ const handleConfirmAppointment = async (appointment) => {
     )
 
     const serviceAdvisorId = store.getters['user/userId'];
+    if (!serviceAdvisorId) {
+      ElMessage.error('无法获取当前用户信息，请重新登录！');
+      return;
+    }
+
     await appointmentApi.confirmAppointment(appointment.id, serviceAdvisorId);
 
-    const response = await repairOrderApi.createOrderFromAppointment(appointment.id);
+    const createOrderResponse = await repairOrderApi.createOrderFromAppointment(appointment.id);
 
-    if (response.code === 200) {
+    if (createOrderResponse.code === 200) {
       ElMessage.success('工单创建成功！');
-
-      // ✅ 修改：将新创建的工单ID存入当前行数据中，以便“查看工单”按钮使用
-      // 假设后端返回的数据结构为 { code: 200, data: { id: 123, ... } }
-      const newOrderId = response.data.id;
-      if (newOrderId) {
-        appointment.orderId = newOrderId;
+      // ✅ 核心修复：找到 appointmentList 中对应的项并更新
+      const target = appointmentList.value.find(item => item.id === appointment.id);
+      if (target) {
+        target.status = 'confirmed'; // 状态变为已确认
+        target.orderId = createOrderResponse.data.id; // 存入工单ID
       }
-
-      loadAppointments();
     } else {
-      ElMessage.error(response.msg || '工单创建失败');
+      ElMessage.error(`创建工单失败: ${createOrderResponse.msg}`);
     }
   } catch (error) {
-    if (error.type !== 'cancel') {
-      console.error('确认预约并创建工单失败:', error);
+    if (error !== 'cancel') {
+      console.error('确认并创建工单失败:', error);
       ElMessage.error('操作失败，请联系管理员');
     }
   }
+}
+
+// --- 新增：加载维修技师列表 ---
+const loadMechanics = async () => {
+  try {
+    // 假设 userApi.getUsersByRole('mechanic') 可以获取所有角色为 'mechanic' 的用户
+    const res = await userApi.getUsersByRole('mechanic')
+    if (res.code === 200) {
+      mechanicList.value = res.data
+    }
+  } catch (err) {
+    ElMessage.error('加载技师列表失败')
+  }
+}
+
+// --- 新增：打开分配技师弹窗 ---
+const openAssignMechanicDialog = (appointment) => {
+  currentAppointment.value = appointment
+  assignDialogVisible.value = true
+  loadMechanics() // 打开弹窗时加载技师列表
+}
+
+// --- 新增：提交分配 ---
+const submitAssign = async () => {
+  if (!assignForm.value.mechanicId) {
+    ElMessage.warning('请选择维修技师')
+    return
+  }
+
+  // ✅ 增加一个健壮性检查，防止在异常情况下调用
+  if (!currentAppointment.value || !currentAppointment.value.orderId) {
+    ElMessage.error('操作无效，未找到关联的工单信息。')
+    assignDialogVisible.value = false
+    return
+  }
+
+  try {
+    // 调用后端接口
+    const res = await repairOrderApi.assignMechanic(
+        currentAppointment.value.orderId, // 工单ID
+        assignForm.value.mechanicId       // 技师ID
+    )
+    if (res.code === 200) {
+      ElMessage.success('分配成功')
+      assignDialogVisible.value = false
+      // 更新本地视图
+      const target = appointmentList.value.find(item => item.id === currentAppointment.value.id)
+      if (target) {
+        const assignedMechanic = mechanicList.value.find(m => m.id === assignForm.value.mechanicId)
+        target.assignedMechanicId = assignForm.value.mechanicId
+        target.assignedMechanicName = assignedMechanic ? assignedMechanic.name : '未知技师'
+      }
+    } else {
+      ElMessage.error(res.msg || '分配失败')
+    }
+  } catch (err) {
+    ElMessage.error('分配失败，请检查网络或联系管理员')
+  }
+}
+
+// --- 新增：重置分配表单 ---
+const resetAssignForm = () => {
+  assignForm.value = { mechanicId: null }
 }
 
 const formatVehicleInfo = (row) => {

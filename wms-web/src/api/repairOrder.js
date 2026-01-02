@@ -3,7 +3,7 @@
 import request from '@/utils/request'
 
 export default {
-    // ✅ 新增：从预约单创建维修工单
+    // 从预约单创建维修工单
     createOrderFromAppointment(appointmentId) {
         return request({
             url: `/api/repair-order/from-appointment/${appointmentId}`,
@@ -116,6 +116,15 @@ export default {
         return request({
             url: '/api/repair-order/list',
             method: 'get'
+        })
+    },
+
+    // ✅ 新增方法：调用后端新增的接口，根据技师ID获取任务
+    getTasksByMechanicId(mechanicId, status) {
+        return request({
+            url: `/api/repair-order/mechanic/${mechanicId}`,
+            method: 'get',
+            params: { status } // 将状态作为查询参数传递给后端
         })
     }
 }

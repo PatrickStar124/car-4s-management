@@ -198,4 +198,19 @@ public class RepairOrderController {
     public Result getOrderList() {
         return Result.suc(repairOrderService.list());
     }
+
+    /**
+     * ✅ 新增接口：根据技师ID获取其维修任务列表
+     * @param mechanicId 维修技师ID
+     * @param status 任务状态（可选，用于过滤）
+     * @return 该技师的任务列表
+     */
+    @GetMapping("/mechanic/{mechanicId}")
+    public Result getTasksByMechanic(
+            @PathVariable Integer mechanicId,
+            @RequestParam(required = false) String status) {
+        // 调用Service层的方法，根据技师ID和状态查询工单
+        // 你需要在 RepairOrderService 和其实现类中实现 getOrdersByMechanicId 方法
+        return repairOrderService.getOrdersByMechanicId(mechanicId, status);
+    }
 }

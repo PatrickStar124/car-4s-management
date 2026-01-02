@@ -1,3 +1,5 @@
+// src/router/index.js
+
 import { createRouter, createWebHistory } from 'vue-router'
 import { ElMessage } from 'element-plus'
 
@@ -88,7 +90,7 @@ const routes = [
         }
     },
     {
-        path: '/service/order-detail',
+        path: '/service/order-detail/:id',
         name: 'OrderDetail',
         component: () => import('@/views/service/OrderDetail.vue'),
         meta: {
@@ -97,18 +99,38 @@ const routes = [
             roles: ['service']
         }
     },
-    // =================== 新增：维修技师【我的任务】路由 (START) ===================
+    // =================== 正确添加的路由 (START) ===================
+    {
+        path: '/service/appointment-manage',
+        name: 'AppointmentManage',
+        component: () => import('@/views/service/AppointmentManage.vue'),
+        meta: {
+            title: '预约管理',
+            requiresAuth: true,
+            roles: ['service']
+        }
+    },
+    // =================== 正确添加的路由 (END) ===================
     {
         path: '/mechanic/task-list',
         name: 'MechanicTaskList',
-        component: () => import('@/views/mechanic/TaskList.vue'), // 指向我们要创建的文件
+        component: () => import('@/views/mechanic/WorkOrder.vue'),
         meta: {
             title: '我的任务',
             requiresAuth: true,
-            roles: ['mechanic'] // 只有维修技师可以访问
+            roles: ['mechanic']
         }
     },
-    // =================== 新增：维修技师【我的任务】路由 (END) ===================
+    {
+        path: '/warehouse/stock-management',
+        name: 'WarehouseStock',
+        component: () => import('@/views/warehouse/Stock.vue'),
+        meta: {
+            title: '库存管理',
+            requiresAuth: true,
+            roles: ['warehouse']
+        }
+    },
     {
         path: '/vehicle/create',
         name: 'VehicleCreate',
@@ -211,9 +233,6 @@ router.beforeEach((to, from, next) => {
     } else {
         next()
     }
-})
-
-router.afterEach(() => {
 })
 
 export default router

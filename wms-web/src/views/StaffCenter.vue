@@ -1,3 +1,4 @@
+<!-- src/views/StaffCenter.vue -->
 <template>
   <div class="staff-center">
     <h1>欢迎来到员工中心</h1>
@@ -7,32 +8,30 @@
       <p><strong>角色：</strong> {{ userRoleName }}</p>
     </div>
 
-    <!-- =================== 新增：角色功能区 (START) =================== -->
     <div class="role-actions" v-if="userRole">
       <h2>工作台</h2>
       <div class="action-buttons">
         <!-- 服务顾问 -->
         <router-link to="/service/appointment-manage" v-if="userRole === 'service'">
-          <el-button type="primary" size="large" icon="Calendar">预约管理</el-button>
+          <el-button type="primary" size="large" :icon="Calendar">预约管理</el-button>
         </router-link>
 
         <!-- 维修技师 -->
         <router-link to="/mechanic/task-list" v-if="userRole === 'mechanic'">
-          <el-button type="success" size="large" icon="Wrench">我的任务</el-button>
+          <el-button type="success" size="large" :icon="Wrench">我的任务</el-button>
         </router-link>
 
-        <!-- 仓库管理员 (占位符) -->
-        <router-link to="/placeholder/warehouse" v-if="userRole === 'warehouse'">
-          <el-button type="warning" size="large" icon="Box">配件管理</el-button>
+        <!-- 仓库管理员 -->
+        <router-link to="/warehouse/stock-management" v-if="userRole === 'warehouse'">
+          <el-button type="warning" size="large" :icon="Box">配件管理</el-button>
         </router-link>
 
         <!-- 管理员 (占位符) -->
         <router-link to="/placeholder/admin" v-if="userRole === 'admin'">
-          <el-button type="danger" size="large" icon="User">用户管理</el-button>
+          <el-button type="danger" size="large" :icon="User">用户管理</el-button>
         </router-link>
       </div>
     </div>
-    <!-- =================== 新增：角色功能区 (END) =================== -->
 
     <div class="actions">
       <button @click="goToHome" class="btn">返回首页</button>
@@ -41,49 +40,59 @@
   </div>
 </template>
 
-<script>
-// 确保你已经安装并全局注册了 Element Plus 图标
-// 如果没有，请在 main.js 中添加：
-// import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-// for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-//   app.component(key, component)
-// }
+<script setup>
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus' // 引入 ElMessage
+import { Calendar, Wrench, Box, User } from '@element-plus/icons-vue'
 
-export default {
-  name: 'StaffCenter',
-  computed: {
-    userName() {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      return userInfo.name || '员工'
-    },
-    userRoleName() {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      const roleMap = {
-        'service': '服务顾问',
-        'mechanic': '维修技师',
-        'warehouse': '仓库管理员',
-        'admin': '管理员'
-      }
-      return roleMap[userInfo.role] || userInfo.role || '员工'
-    },
-    // ✅ 新增：获取原始角色值，用于判断显示哪个按钮
-    userRole() {
-      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
-      return userInfo.role
-    }
-  },
-  methods: {
-    goToHome() {
-      this.$router.push('/home')
-    },
-    logout() {
-      if (confirm('确定要退出登录吗？')) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('userInfo')
-        localStorage.removeItem('userType')
-        this.$router.push('/login')
-      }
-    }
+const router = useRouter()
+
+// ========== 关键修改：统一从 'user' 读取用户信息 ==========
+const getUserInfo = () => {
+  try {
+    const userStr = localStorage.getItem('user') // <-- 修改点 1
+    return userStr ? JSON.parse(userStr) : {}
+  } catch (error) {
+    console.error('解析用户信息失败:', error)
+    return {}
+  }
+}
+
+const userName = computed(() => {
+  const userInfo = getUserInfo()
+  return userInfo.name || userInfo.no || '员工'
+})
+
+const userRoleName = computed(() => {
+  const userInfo = getUserInfo()
+  const roleMap = {
+    'service': '服务顾问',
+    'mechanic': '维修技师',
+    'warehouse': '仓库管理员',
+    'admin': '管理员'
+  }
+  return roleMap[userInfo.role] || userInfo.role || '员工'
+})
+
+const userRole = computed(() => {
+  const userInfo = getUserInfo()
+  return userInfo.role
+})
+
+const goToHome = () => {
+  router.push('/home')
+}
+
+const logout = () => {
+  if (confirm('确定要退出登录吗？')) {
+    // 清除所有相关的本地存储
+    localStorage.removeItem('token')
+    localStorage.removeItem('user') // <-- 修改点 2：确保清除的是 'user'
+    localStorage.removeItem('rememberedUsername') // 也清除记住的用户名
+
+    ElMessage.success('已成功退出登录') // 使用 Element Plus 的消息提示
+    router.push('/login')
   }
 }
 </script>
@@ -114,7 +123,6 @@ h2 {
   text-align: left;
 }
 
-/* ✅ 新增：角色功能区样式 */
 .role-actions {
   margin: 40px 0;
 }
@@ -122,7 +130,7 @@ h2 {
   display: flex;
   justify-content: center;
   gap: 20px;
-  flex-wrap: wrap; /* 允许按钮换行 */
+  flex-wrap: wrap;
 }
 
 .actions {

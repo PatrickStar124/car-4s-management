@@ -1,3 +1,4 @@
+<!-- src/components/Navbar.vue -->
 <template>
   <nav class="navbar">
     <!-- 左侧导航 -->
@@ -9,7 +10,7 @@
       </router-link>
 
       <!-- 公共导航项 -->
-      <router-link to="/home" class="nav-link">
+      <router-link to="/" class="nav-link">
         <el-icon><House /></el-icon>
         <span>首页</span>
       </router-link>
@@ -42,11 +43,12 @@
             <el-icon><Van /></el-icon>
             <span>车辆管理</span>
           </router-link>
-          <router-link to="/placeholder/workorder" class="nav-link">
+          <!-- 动态路由示例 -->
+          <router-link to="/mechanic/task-list" class="nav-link" v-if="user.role === 'mechanic'">
             <el-icon><Document /></el-icon>
-            <span>工单管理</span>
+            <span>我的任务</span>
           </router-link>
-          <router-link to="/placeholder/stock" class="nav-link">
+          <router-link to="/warehouse/stock-management" class="nav-link" v-if="user.role === 'warehouse'">
             <el-icon><Box /></el-icon>
             <span>配件库存</span>
           </router-link>
@@ -104,30 +106,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import {
-  Promotion,
-  House,
-  User,
-  Van,
-  Calendar,
-  OfficeBuilding,
-  Document,
-  Box,
-  ArrowDown,
-  Lock,
-  SwitchButton,
-  EditPen
+  Promotion, House, User, Van, Calendar, OfficeBuilding,
+  Document, Box, ArrowDown, Lock, SwitchButton, EditPen
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
-// 从localStorage获取用户信息
+// 1. 使用 ref 替代 data
 const user = ref(null)
 
-// 计算角色文本
+// 2. 使用 computed 替代 computed
 const roleText = computed(() => {
   if (!user.value) return ''
   const roleMap = {
@@ -140,38 +132,30 @@ const roleText = computed(() => {
   return roleMap[user.value.role] || user.value.role
 })
 
-// 检查权限
+// 3. 使用普通函数替代 methods
 const hasPermission = (permission) => {
   if (!user.value) return false
-
+  // 示例：只有非车主角色才能访问车辆管理
   if (permission === 'vehicle') {
     return user.value.role !== 'owner'
   }
-
   return true
 }
 
-// 初始化用户信息
 const loadUserFromLocalStorage = () => {
   try {
+    // ✅ 确保使用正确的键名 'user'
     const userStr = localStorage.getItem('user')
     if (userStr) {
       user.value = JSON.parse(userStr)
-      console.log('导航栏加载用户信息:', user.value)
+      console.log('✅ 导航栏已加载用户信息:', user.value)
     }
   } catch (error) {
-    console.error('解析用户信息失败:', error)
+    console.error('❌ 解析用户信息失败:', error)
+    user.value = null
   }
 }
 
-// 监听storage变化
-window.addEventListener('storage', (e) => {
-  if (e.key === 'user') {
-    loadUserFromLocalStorage()
-  }
-})
-
-// 处理下拉菜单命令
 const handleCommand = async (command) => {
   switch (command) {
     case 'profile':
@@ -181,19 +165,15 @@ const handleCommand = async (command) => {
         router.push('/staff-center')
       }
       break
-
     case 'changePassword':
-      router.push('/placeholder/password')
       ElMessage.info('修改密码功能开发中...')
       break
-
     case 'logout':
       await handleLogout()
       break
   }
 }
 
-// 处理退出登录
 const handleLogout = async () => {
   try {
     await ElMessageBox.confirm('确定要退出登录吗？', '退出确认', {
@@ -208,23 +188,28 @@ const handleLogout = async () => {
     localStorage.removeItem('token')
     localStorage.removeItem('rememberedUsername')
 
-    // 提示并跳转到首页
     ElMessage.success('已成功退出登录')
-
-    setTimeout(() => {
-      router.push('/')
-    }, 500)
+    router.push('/')
 
   } catch (error) {
-    // 用户取消退出
-    console.log('取消退出登录')
+    // 用户取消操作，ElMessageBox会抛出异常
+    console.log('用户取消退出登录')
   }
 }
 
-// 组件挂载时加载用户信息
+// 4. 使用 onMounted 替代 mounted
 onMounted(() => {
   loadUserFromLocalStorage()
 })
+
+// 5. 增加 watch 监听 localStorage 的变化（例如在其他标签页登录/退出）
+watch(
+    () => localStorage.getItem('user'),
+    () => {
+      loadUserFromLocalStorage()
+    },
+    { immediate: true, deep: true }
+)
 </script>
 
 <style scoped>
@@ -240,12 +225,13 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 1000;
+  transition: all 0.3s ease;
 }
 
-.nav-left {
+.nav-left, .nav-right {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px; /* 优化间距 */
 }
 
 .logo {
@@ -263,11 +249,8 @@ onMounted(() => {
 }
 
 .logo-text {
-  background: linear-gradient(to right, #fff 0%, #f0f0f0 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  /* 移除了复杂的渐变文字，保持简洁 */
+  font-weight: bold;
 }
 
 .nav-link {
@@ -287,15 +270,12 @@ onMounted(() => {
   color: white;
 }
 
+/* ✅ 优化激活链接样式 */
+.nav-link.router-link-active,
 .nav-link.router-link-exact-active {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.25);
   color: white;
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+  font-weight: 500;
 }
 
 .user-dropdown {
@@ -306,8 +286,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 8px;
-  border-radius: 6px;
+  padding: 4px 12px;
+  border-radius: 20px; /* 改为胶囊形状 */
   transition: all 0.3s ease;
 }
 
@@ -316,7 +296,7 @@ onMounted(() => {
 }
 
 .user-avatar {
-  background-color: #409EFF;
+  background-color: rgba(255, 255, 255, 0.2);
   color: white;
 }
 
@@ -337,7 +317,7 @@ onMounted(() => {
   }
 
   .nav-left {
-    gap: 12px;
+    gap: 8px;
   }
 
   .logo-text {
@@ -348,8 +328,8 @@ onMounted(() => {
     display: none;
   }
 
-  .nav-link .el-icon {
-    margin-right: 0;
+  .nav-link {
+    padding: 8px;
   }
 
   .welcome-text {

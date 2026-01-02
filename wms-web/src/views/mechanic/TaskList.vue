@@ -23,7 +23,7 @@
         <el-table-column prop="orderNo" label="工单号" width="180" />
         <el-table-column
             label="车辆信息"
-            min-width="220"
+            min-width="200"
             :formatter="formatVehicleInfo"
         />
         <el-table-column prop="problemDesc" label="问题描述" :show-overflow-tooltip="true" />
@@ -71,23 +71,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useStore } from 'vuex'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Wrench } from '@element-plus/icons-vue'
-import repairOrderApi from '@/api/repairOrder' // 假设API文件叫这个名字
+import repairOrderApi from '@/api/repairOrder'
 
 const router = useRouter()
+const store = useStore()
 const loading = ref(true)
 const taskList = ref([])
-const statusFilter = ref('repairing') // 默认看待维修任务
+const statusFilter = ref('repairing')
 
-// 加载任务列表
+// ✅ 核心修改：从Vuex获取当前登录技师的ID
+const currentMechanicId = computed(() => {
+  // 假设你的用户信息存储在 state.user.info 中，并且技师ID是 userId
+  // 如果你的字段名不同，请相应修改，例如 store.state.user?.id
+  return store.state.user?.info?.userId
+})
+
+// ✅ 核心修改：重写 loadTasks 方法
 const loadTasks = async () => {
+  // 1. 检查技师ID是否存在
+  if (!currentMechanicId.value) {
+    ElMessage.error('无法获取当前用户信息，请重新登录！')
+    loading.value = false
+    return
+  }
+
   loading.value = true
   try {
-    // 调用你刚刚在后端新增的接口
-    const response = await repairOrderApi.getPendingRepairOrders(statusFilter.value)
+    // 2. 调用新的API方法，传入技师ID和状态
+    const response = await repairOrderApi.getTasksByMechanicId(currentMechanicId.value, statusFilter.value)
+
     if (response.code === 200) {
       taskList.value = response.data || []
     } else {
@@ -101,14 +118,10 @@ const loadTasks = async () => {
   }
 }
 
-// 查看任务详情
 const viewTaskDetail = (task) => {
-  // 后续可以跳转到一个详情页，目前先弹窗提示
   ElMessage.info(`正在查看工单号 ${task.orderNo} 的详情...`)
-  // router.push({ name: 'MechanicTaskDetail', query: { id: task.id } })
 }
 
-// 完成维修
 const completeTask = async (task) => {
   try {
     await ElMessageBox.confirm(
@@ -116,21 +129,9 @@ const completeTask = async (task) => {
         '提示',
         { type: 'warning' }
     )
-
-    // 调用后端接口更新工单状态为 'completed'
-    // const response = await repairOrderApi.completeRepair(task.id)
-    // if (response.code === 200) {
-    //   ElMessage.success('维修完成！')
-    //   loadTasks() // 刷新列表
-    // } else {
-    //   ElMessage.error(response.msg || '操作失败')
-    // }
-
-    // 暂时先用前端模拟
     task.status = 'completed';
     ElMessage.success('维修完成！状态已更新。')
     loadTasks()
-
   } catch (error) {
     if (error.type !== 'cancel') {
       console.error('完成维修失败:', error)
@@ -139,7 +140,6 @@ const completeTask = async (task) => {
   }
 }
 
-// 格式化方法
 const formatVehicleInfo = (row) => {
   return row.vehicle ? `${row.vehicle.brand || ''} ${row.vehicle.model || ''}（${row.vehicle.plateNumber || ''}）` : '车辆信息未关联';
 }
@@ -152,7 +152,6 @@ const statusTagType = (status) => {
   return map[status] || 'info'
 }
 
-// 页面加载时获取数据
 onMounted(() => {
   loadTasks()
 })

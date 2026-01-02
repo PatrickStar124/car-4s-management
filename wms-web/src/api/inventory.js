@@ -71,7 +71,7 @@ export default {
     },
 
     /**
-     * 获取所有库存列表 (对应你刚刚新增的后端接口)
+     * 获取所有库存列表
      */
     getAllInventory() {
         return request({

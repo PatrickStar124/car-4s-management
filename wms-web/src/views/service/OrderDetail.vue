@@ -1,3 +1,4 @@
+<!-- src/views/service/OrderDetail.vue -->
 <template>
   <div class="order-detail-container">
     <div class="page-header">
@@ -5,7 +6,7 @@
       <el-button type="default" icon="ArrowLeft" @click="goBack">返回列表</el-button>
     </div>
 
-    <el-card shadow="hover" class="detail-card">
+    <el-card shadow="hover" class="detail-card" v-loading="loading">
       <!-- 工单基本信息 -->
       <div class="base-info-section">
         <div class="info-row">
@@ -151,11 +152,11 @@ import repairOrderApi from '@/api/repairOrder'
 
 const router = useRouter()
 const route = useRoute()
-const orderId = route.query.id // 从路由获取工单ID
+// ✅ 核心修正：从路由参数 (params) 中获取工单ID，而不是查询参数 (query)
+const orderId = route.params.id
 
-// 工单数据
+const loading = ref(true)
 const order = ref({})
-// 添加工单项弹窗
 const addItemDialogVisible = ref(false)
 const itemForm = ref({
   itemType: 'part',
@@ -164,7 +165,6 @@ const itemForm = ref({
   unitPrice: 0
 })
 
-// 状态映射
 const statusLabel = {
   pending: '待接车',
   inspecting: '检查中',
@@ -182,53 +182,50 @@ const statusTagType = {
   delivered: 'success'
 }
 
-// 加载工单详情
 const loadOrderDetail = async () => {
+  loading.value = true
   try {
     const res = await repairOrderApi.getOrderDetail(orderId)
     if (res.code === 200) {
       order.value = res.data.order
-      order.value.items = res.data.items // 关联工单项
+      order.value.items = res.data.items
     } else {
-      ElMessage.error('获取工单详情失败')
+      ElMessage.error(res.msg || '获取工单详情失败')
     }
   } catch (err) {
     ElMessage.error('网络错误，请重试')
+  } finally {
+    loading.value = false
   }
 }
 
-// 权限判断：是否可以添加工单项
 const canAddItem = computed(() => {
   const status = order.value.status
   return status === 'pending' || status === 'inspecting'
 })
 
-// 权限判断：是否可以提交报价
 const canSubmitQuote = computed(() => {
   const status = order.value.status
   return status === 'inspecting'
 })
 
-// 权限判断：是否可以完成工单
 const canCompleteOrder = computed(() => {
   const status = order.value.status
   return status === 'repairing'
 })
 
-// 添加工单项弹窗
 const openAddItemDialog = () => {
   itemForm.value = { itemType: 'part', description: '', quantity: 1, unitPrice: 0 }
   addItemDialogVisible.value = true
 }
 
-// 提交工单项
 const submitItem = async () => {
   try {
     const res = await repairOrderApi.addOrderItem(orderId, itemForm.value)
     if (res.code === 200) {
       ElMessage.success('工单项添加成功')
       addItemDialogVisible.value = false
-      loadOrderDetail() // 刷新详情
+      loadOrderDetail()
     } else {
       ElMessage.error(res.msg || '添加失败')
     }
@@ -237,10 +234,8 @@ const submitItem = async () => {
   }
 }
 
-// 提交报价
 const submitQuote = async () => {
   try {
-    // 先计算总金额
     const calcRes = await repairOrderApi.calculateOrderAmount(orderId)
     if (calcRes.code !== 200) {
       ElMessage.error('计算金额失败')
@@ -248,7 +243,6 @@ const submitQuote = async () => {
     }
     const estimatedAmount = calcRes.data
 
-    // 确认提交
     await ElMessageBox.confirm(
         `确认提交报价（预估金额：${estimatedAmount} 元）？`,
         '提示',
@@ -258,7 +252,7 @@ const submitQuote = async () => {
     const res = await repairOrderApi.submitQuote(orderId, estimatedAmount, '系统自动计算')
     if (res.code === 200) {
       ElMessage.success('报价提交成功')
-      loadOrderDetail() // 刷新状态
+      loadOrderDetail()
     } else {
       ElMessage.error(res.msg || '提交失败')
     }
@@ -267,7 +261,6 @@ const submitQuote = async () => {
   }
 }
 
-// 完成工单
 const completeOrder = async () => {
   try {
     await ElMessageBox.confirm(
@@ -276,12 +269,11 @@ const completeOrder = async () => {
         { type: 'warning' }
     )
 
-    // 这里实际金额可以由服务顾问输入，先默认用预估金额
     const actualAmount = order.value.estimatedAmount
     const res = await repairOrderApi.completeOrder(orderId, actualAmount)
     if (res.code === 200) {
       ElMessage.success('工单已完成')
-      loadOrderDetail() // 刷新状态
+      loadOrderDetail()
     } else {
       ElMessage.error(res.msg || '操作失败')
     }
@@ -290,12 +282,10 @@ const completeOrder = async () => {
   }
 }
 
-// 返回上一页
 const goBack = () => {
   router.back()
 }
 
-// 页面加载时获取详情
 onMounted(() => {
   loadOrderDetail()
 })

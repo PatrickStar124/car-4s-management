@@ -6,34 +6,34 @@
     <el-row :gutter="20" style="margin-bottom: 20px;">
       <el-col :span="6">
         <el-card shadow="hover">
-          <div slot="header"><span>库存总价值</span></div>
-          <div class="stat-value">{{ stats.totalValue || 0 }}</div>
+          <template #header><span>库存总价值</span></template>
+          <div class="stat-value">¥{{ (stats.totalValue || 0).toFixed(2) }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <div slot="header"><span>配件种类</span></div>
+          <template #header><span>配件种类</span></template>
           <div class="stat-value">{{ stats.totalItems || 0 }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover">
-          <div slot="header"><span>总库存数量</span></div>
+          <template #header><span>总库存数量</span></template>
           <div class="stat-value">{{ stats.totalQuantity || 0 }}</div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover">
-          <div slot="header"><span>低库存预警</span></div>
+        <el-card shadow="hover" :class="{ 'low-stock-warning': stats.lowStockCount > 0 }">
+          <template #header><span>低库存预警</span></template>
           <div class="stat-value">{{ stats.lowStockCount || 0 }}</div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-table :data="inventoryList" border style="width: 100%" v-loading="loading">
+    <el-table :data="inventoryList" border style="width: 100%" v-loading="loading" row-key="partId">
       <el-table-column prop="part.partNo" label="配件编号" width="120" />
-      <el-table-column prop="part.name" label="配件名称" width="180" />
-      <el-table-column prop="part.spec" label="规格型号" width="180" />
+      <el-table-column prop="part.partName" label="配件名称" width="180" show-overflow-tooltip />
+      <el-table-column prop="part.spec" label="规格型号" width="180" show-overflow-tooltip />
       <el-table-column prop="stockQuantity" label="当前库存" width="120" />
       <el-table-column prop="safeStock" label="安全库存" width="120" />
       <el-table-column prop="lastInboundTime" label="最后入库时间" width="180" />
@@ -47,24 +47,24 @@
 
     <!-- 入库/出库对话框 -->
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="40%">
-      <el-form :model="form" label-width="100px">
+      <el-form ref="formRef" :model="form" label-width="100px" :rules="rules">
         <el-form-item label="配件名称">
           <el-input :value="form.partName" disabled></el-input>
         </el-form-item>
-        <el-form-item label="操作数量" prop="quantity" :rules="[{ required: true, message: '请输入数量', type: 'number', min: 1 }]">
+        <el-form-item label="操作数量" prop="quantity">
           <el-input-number v-model="form.quantity" :min="1" controls-position="right"></el-input-number>
         </el-form-item>
-        <el-form-item label="操作人">
+        <el-form-item label="操作人" prop="operator">
           <el-input v-model="form.operator" placeholder="请输入你的名字"></el-input>
         </el-form-item>
-        <el-form-item v-if="dialogType === 'out'" label="出库用途">
+        <el-form-item v-if="dialogType === 'out'" label="出库用途" prop="purpose">
           <el-input v-model="form.purpose" placeholder="例如：维修工单RO12345"></el-input>
         </el-form-item>
       </el-form>
-      <span slot="footer" class="dialog-footer">
+      <template #footer>
         <el-button @click="dialogVisible = false">取 消</el-button>
         <el-button type="primary" @click="handleConfirm">确 定</el-button>
-      </span>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -77,6 +77,7 @@ import inventoryApi from '@/api/inventory'
 const loading = ref(true)
 const inventoryList = ref([])
 const stats = ref({})
+const formRef = ref(null)
 
 const dialogVisible = ref(false)
 const dialogType = ref('') // 'in' for stock-in, 'out' for stock-out
@@ -89,16 +90,22 @@ const form = reactive({
   purpose: ''
 })
 
+const rules = reactive({
+  quantity: [{ required: true, message: '请输入数量', trigger: 'blur' }],
+  operator: [{ required: true, message: '请输入操作人', trigger: 'blur' }],
+  purpose: [{ required: true, message: '请输入出库用途', trigger: 'blur' }],
+})
+
 const loadInventory = async () => {
   loading.value = true
   try {
-    // 假设你已添加 getAllInventory 接口
-    const resInventory = await inventoryApi.getAllInventory()
+    const [resInventory, resStats] = await Promise.all([
+      inventoryApi.getAllInventory(),
+      inventoryApi.getInventoryStats()
+    ])
     if (resInventory.code === 200) {
       inventoryList.value = resInventory.data
     }
-
-    const resStats = await inventoryApi.getInventoryStats()
     if (resStats.code === 200) {
       stats.value = resStats.data
     }
@@ -115,7 +122,7 @@ const openStockDialog = (row, type) => {
   dialogTitle.value = type === 'in' ? '配件入库' : '配件出库'
 
   form.partId = row.partId
-  form.partName = row.part.name
+  form.partName = row.part.partName
   form.quantity = 1
   form.purpose = ''
   // 可以从localStorage获取当前用户名
@@ -127,6 +134,8 @@ const openStockDialog = (row, type) => {
 
 const handleConfirm = async () => {
   try {
+    await formRef.value.validate()
+
     let res;
     if (dialogType.value === 'in') {
       res = await inventoryApi.stockIn({
@@ -152,7 +161,9 @@ const handleConfirm = async () => {
     }
   } catch (error) {
     console.error(error)
-    ElMessage.error('网络错误')
+    if (error.name !== 'ValidationError') {
+      ElMessage.error('网络错误')
+    }
   }
 }
 
@@ -173,5 +184,12 @@ h1 {
   font-weight: bold;
   text-align: center;
   color: #409EFF;
+  padding: 10px 0;
+}
+.el-card.low-stock-warning .stat-value {
+  color: #F56C6C;
+}
+.el-dialog__body {
+  padding-top: 0;
 }
 </style>
